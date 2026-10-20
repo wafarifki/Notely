@@ -49,6 +49,10 @@ export interface NoteRecord {
     favorite: boolean;
     // ─── NEW: archived notes stay in the database but leave the active lists. ───
     archived: boolean;
+    // ─── NEW: absolute path of the `.txt` / `.md` file this note was imported
+    // from. Re-opening the same file then updates this note instead of piling
+    // up duplicates in the list. Undefined for notes typed inside Notely. ───
+    sourcePath?: string | null;
     order: number;
     createdAt: string;
     updatedAt: string;

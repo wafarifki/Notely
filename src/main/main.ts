@@ -1,9 +1,108 @@
 import { app, BrowserWindow, ipcMain, Menu, nativeTheme, screen, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
+import {
+    CREATE_FILE_CHANNEL,
+    LAUNCH_CHANNEL,
+    LAUNCH_RUN_CHANNEL,
+    normalizeActionFlag,
+    type LaunchIntent
+} from "./channels";
+import { parseLaunchArgs, readDocument } from "./documents";
 
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL ?? "http://localhost:5391";
 const isDevelopment = !app.isPackaged;
+
+// ─── NEW: Windows shell integration ──────────────────────────────────────────
+// Explorer can start Notely with `--app-task`, `--app-note` or `--app-txt`
+// (context menu) and with a `.txt` / `.md` path (file association). Those
+// arguments arrive here before the window exists, so the intent is queued and
+// handed to the renderer once it asks for it.
+let pendingIntent: LaunchIntent | null = null;
+let rendererReady = false;
+
+function queueIntent(intent: LaunchIntent | null) {
+    if (!intent) return;
+    if (rendererReady && mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(LAUNCH_CHANNEL, intent);
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.focus();
+        return;
+    }
+    // Keep only the newest intent: a second dropped file replaces an unhandled one.
+    pendingIntent = intent;
+}
+
+/**
+ * `--app-txt` needs no renderer involvement: the shortcut just drops an empty
+ * `newfile.txt` next to the user and reveals it. Kept in the main process so it
+ * also works before the window has finished loading.
+ *
+ * `targetPath` is the folder Explorer passed as `%V`. Explorer does not
+ * reliably set the working directory to the clicked folder, so relying on
+ * `process.cwd()` alone put `newfile.txt` in unpredictable places. Passing the
+ * path explicitly makes the file land where the user right-clicked.
+ */
+function createNewTxtFile(targetPath?: string): string | null {
+    const target = newTextFileTarget(targetPath);
+    if (!target) return null;
+    if (!fs.existsSync(target)) fs.writeFileSync(target, "", "utf8");
+    shell.showItemInFolder(target);
+    return target;
+}
+
+/**
+ * Where should `newfile.txt` go?
+ *
+ * ─── OLD CODE (kept for reference) ───
+ * const candidates = [process.cwd(), app.getPath("documents"), app.getPath("desktop")];
+ * Explorer's launched process inherits an unrelated working directory, so
+ * `process.cwd()` was a guess. The `%V` path from the registry command is the
+ * folder (or desktop) the user actually right-clicked.
+ *
+ * ─── NEW: prefer the explicit path, then fall back to Documents/Desktop. ───
+ */
+function newTextFileTarget(targetPath?: string): string | null {
+    const candidates: string[] = [];
+    if (targetPath) {
+        try {
+            const resolved = path.resolve(targetPath);
+            // `%V` can be a folder (Directory\Background) or a file (`*`,
+            // Directory). Use the directory in both cases.
+            const stats = fs.existsSync(resolved) ? fs.statSync(resolved) : null;
+            candidates.push(stats && stats.isDirectory() ? resolved : path.dirname(resolved));
+        } catch {
+            // Ignore an unusable path and fall through to the defaults.
+        }
+    }
+    candidates.push(process.cwd(), app.getPath("documents"), app.getPath("desktop"));
+
+    for (const directory of candidates) {
+        try {
+            if (!directory || !fs.existsSync(directory) || !fs.statSync(directory).isDirectory()) continue;
+            let name = "newfile.txt";
+            let counter = 1;
+            // Never overwrite an existing file; `newfile (1).txt` and so on.
+            while (fs.existsSync(path.join(directory, name))) {
+                name = `newfile (${counter}).txt`;
+                counter += 1;
+            }
+            return path.join(directory, name);
+        } catch {
+            continue;
+        }
+    }
+    return null;
+}
+
+/** The `%V` path passed by the context-menu command, if any. */
+function folderArgumentFrom(argv: readonly string[]): string | undefined {
+    return argv.find((value) => {
+        const trimmed = value.trim();
+        if (!trimmed || trimmed.startsWith("-") || trimmed.includes("%")) return false;
+        return path.isAbsolute(trimmed) || /^[a-zA-Z]:[\\/]/.test(trimmed);
+    });
+}
 
 app.setName("Notely");
 
@@ -92,8 +191,25 @@ function createWindow() {
         title: "Notely",
         icon: path.join(app.getAppPath(), "assets", "icon.ico"),
         autoHideMenuBar: true,
+        // ─── OLD CODE (kept for reference) ───
+        // titleBarStyle: "hidden",
+        // titleBarOverlay: false,
+        // ...
+        // titleBarStyle: process.platform === "win32" ? "hiddenInset" : "hidden",
+        // `hiddenInset` is a macOS-only value. On Windows it is not supported and
+        // produced a frameless window: the renderer's own control cluster was
+        // still there, but the window had no frame and could not be resized, so
+        // the panel appeared to stop following the window. Going back to
+        // `hidden` + `thickFrame` gives Windows a resizable 1px-border window
+        // with the title bar hidden — the renderer draws the buttons.
+        // ─── NEW: keep the native resize border on Windows (`thickFrame`) while
+        // hiding the title bar, and let the renderer paint its own controls. ───
         titleBarStyle: "hidden",
         titleBarOverlay: false,
+        thickFrame: true,
+        resizable: true,
+        maximizable: true,
+        minimizable: true,
         webPreferences: {
             preload: path.join(__dirname, "preload.js"),
             contextIsolation: true,
@@ -134,6 +250,8 @@ function createWindow() {
     mainWindow.on("unmaximize", () => mainWindow && sendMaximizeState(mainWindow));
     mainWindow.on("closed", () => {
         mainWindow = null;
+        // ─── NEW: the next window re-registers and drains the intent queue. ───
+        rendererReady = false;
     });
 
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -184,12 +302,114 @@ function registerWindowControls() {
     ipcMain.handle("window:is-maximized", (event) => windowFrom(event)?.isMaximized() ?? false);
 }
 
+/**
+ * Shell-integration IPC.
+ *
+ * The renderer pulls the pending intent on start-up (a file dropped on the app
+ * icon arrives before React exists) and subscribes for later ones (a second
+ * file opened while Notely is already running).
+ */
+function registerLaunchBridge() {
+    ipcMain.handle(LAUNCH_RUN_CHANNEL, (_event, action: unknown): boolean => {
+        if (typeof action !== "string") return false;
+        const verb = normalizeActionFlag(action);
+        if (verb === "txt") {
+            // `--app-txt` is a main-process action: it writes the file and
+            // reveals it, no renderer round-trip needed.
+            createNewTxtFile();
+            return true;
+        }
+        if (verb === "task") {
+            queueIntent({ kind: "task" });
+            return true;
+        }
+        // ─── NEW: "Create New Notes" opens a blank note. `notes` is accepted
+        // as an alias so an older shortcut keeps working after a rename. ───
+        if (verb === "note" || verb === "notes") {
+            queueIntent({ kind: "note" });
+            return true;
+        }
+        return false;
+    });
+
+    ipcMain.handle(CREATE_FILE_CHANNEL, (): string | null => createNewTxtFile());
+
+    // ─── NEW: default-app helpers ───
+    // Windows 10/11 keeps the real default in
+    // `Explorer\FileExts\.txt\UserChoice`, whose value is hash-signed by
+    // Explorer. No installer can write it, so the only supported route is to
+    // hand the user the Windows UI and let them pick Notely once. These
+    // handlers open exactly the right page instead of making them hunt for it.
+    ipcMain.handle("app:open-default-apps", async (_event, extension: unknown) => {
+        const ext = typeof extension === "string" && /^\.[a-z0-9]+$/i.test(extension) ? extension : ".txt";
+        // `ms-settings:defaultapps` exists on Windows 10 1903+ and 11.
+        await shell.openExternal(`ms-settings:defaultapps?registeredAppUser=Notely&extension=${ext}`);
+        return true;
+    });
+
+    // "Open with" for a real file: lets the user pick Notely and tick
+    // "Always use this app", which is what actually writes UserChoice.
+    ipcMain.handle("app:open-with", async (_event, filePath: unknown) => {
+        if (typeof filePath !== "string") return false;
+        try {
+            // `rundll32 shell32.dll,OpenAs_RunDLL <file>` is the documented way
+            // to raise the native "Open with" chooser.
+            const { spawn } = await import("node:child_process");
+            spawn("rundll32.exe", ["shell32.dll,OpenAs_RunDLL", filePath], {
+                detached: true,
+                stdio: "ignore"
+            }).unref();
+            return true;
+        } catch {
+            return false;
+        }
+    });
+
+    // The renderer is mounted and ready for intents; drain the queue.
+    ipcMain.handle(`${LAUNCH_CHANNEL}:ready`, (): LaunchIntent | null => {
+        rendererReady = true;
+        const intent = pendingIntent;
+        pendingIntent = null;
+        return intent;
+    });
+
+    // ─── NEW: opening a `.txt` / `.md` through the file association. ───
+    // The renderer stores notes in IndexedDB, which the main process cannot
+    // reach, so it replies with the parsed document and lets the renderer
+    // decide whether to reuse an existing note or import a fresh one.
+    ipcMain.handle("app:read-document", (_event, filePath: unknown) => {
+        if (typeof filePath !== "string") return null;
+        // Imported lazily so the parse/convert helpers stay out of startup.
+        return readDocument(filePath);
+    });
+}
+
 const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
     app.quit();
 } else {
-    app.on("second-instance", () => {
+    // ─── NEW: a second launch (file association, context menu) forwards its
+    // command line to the running instance instead of opening another window. ───
+    app.on("second-instance", (_event, argv) => {
+        // ─── OLD CODE (kept for reference) ───
+        // queueIntent(parseLaunchArgs(argv));
+        // `parseLaunchArgs` only understands the renderer-facing verbs. A
+        // second `--app-txt` click was therefore parsed as `null` and did
+        // nothing at all — the file was never created. `--app-txt` is handled
+        // entirely in the main process (no renderer involved), and must be
+        // checked before the generic intent queue.
+        const normalized = argv.map((value) => value.trim().toLowerCase());
+        const wantsTxt = normalized.some((value) => /^--app[\s-]txt$/.test(value));
+        if (wantsTxt) {
+            // `%V` from the context menu tells us which folder to write into.
+            createNewTxtFile(folderArgumentFrom(argv));
+            if (!mainWindow) return;
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.focus();
+            return;
+        }
+        queueIntent(parseLaunchArgs(argv));
         if (!mainWindow) return;
         if (mainWindow.isMinimized()) mainWindow.restore();
         mainWindow.focus();
@@ -198,9 +418,33 @@ if (!gotTheLock) {
     nativeTheme.themeSource = "light";
     Menu.setApplicationMenu(null);
     registerWindowControls();
+    registerLaunchBridge();
 
     app.whenReady().then(() => {
         app.setAppUserModelId("com.notely.desktop");
+
+        // ─── OLD CODE (kept for reference) ───
+        // createWindow();
+        // ─── NEW: remember the first-launch command line before the window
+        // opens, then honour a direct `--app-txt` request by writing the file
+        // and quitting (Explorer's "New > Text Document" equivalent). ───
+        const argv = process.argv.slice(1);
+        // ─── NEW: `--app-txt` is checked FIRST. `parseLaunchArgs` returns null
+        // for it (it is not a renderer intent), and the old `else if` meant it
+        // only ran when nothing else matched — which held, but the argument
+        // search below must still see `%V`, so the order matters. ───
+        if (argv.some((value) => /^--app[\s-]txt$/i.test(value))) {
+            // `%V` from the context menu tells us which folder to write into.
+            createNewTxtFile(folderArgumentFrom(argv));
+            app.quit();
+            return;
+        }
+
+        const launch = parseLaunchArgs(argv);
+        if (launch) {
+            queueIntent(launch);
+        }
+
         createWindow();
 
         app.on("activate", () => {

@@ -23,6 +23,8 @@ import { ArchivePage } from "@/features/archive/ArchivePage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 import { PrivacyPage, SupportPage, WhatsNewPage } from "@/features/info/InfoPages";
 import { PRIMARY_COLORS, type NoteRecord, type TaskRecord } from "@/db/schema";
+import { getDesktopBridge, type LaunchIntent } from "@/platform/desktop";
+import { useLaunchIntent } from "@/platform/launch";
 
 interface ProjectDialogState {
     mode: "create" | "edit";
@@ -140,10 +142,39 @@ function Workspace() {
                 return null;
             }
         },
-        [store.service, toast, openNote]
+        [store.service, toast, t, openNote]
     );
 
     const requestDeleteProject = useCallback((projectId: string) => setDeletingProjectId(projectId), []);
+
+    // ─── NEW: a `.txt` / `.md` opened through Windows lands here. The main
+    // process does the parsing (it has filesystem access); this side decides
+    // which note to refresh and takes the user there. ───
+    const openImportedDocument = useCallback(
+        async (filePath: string) => {
+            const bridge = getDesktopBridge();
+            if (!bridge) return null;
+            try {
+                const document = await bridge.readDocument(filePath);
+                if (!document) {
+                    toast.error(t("toast.fileUnreadable"));
+                    return null;
+                }
+                const { note, created } = await store.service.importDocument({
+                    title: document.title,
+                    content: document.content,
+                    sourcePath: document.sourcePath
+                });
+                toast.success(t(created ? "toast.fileImported" : "toast.fileRefreshed"));
+                openNote(note.id);
+                return note;
+            } catch (error) {
+                toast.error(describeError(error));
+                return null;
+            }
+        },
+        [store.service, toast, t, openNote]
+    );
 
     const deleteProject = useCallback(
         async (strategy: "unassign" | "delete") => {
@@ -155,7 +186,7 @@ function Workspace() {
                 go({ name: "home" });
             }
         },
-        [deletingProjectId, store.service, toast, route, go]
+        [deletingProjectId, store.service, toast, t, route, go]
     );
 
     const confirmDeleteNote = useCallback(async () => {
@@ -170,7 +201,7 @@ function Workspace() {
             toast.error(describeError(error));
         }
         setNoteToDelete(null);
-    }, [noteToDelete, store.service, toast, route, go]);
+    }, [noteToDelete, store.service, toast, t, route, go]);
 
     const confirmDeleteTask = useCallback(async () => {
         if (!taskToDelete) return;
@@ -184,7 +215,7 @@ function Workspace() {
             toast.error(describeError(error));
         }
         setTaskToDelete(null);
-    }, [taskToDelete, store.service, toast, taskDialog]);
+    }, [taskToDelete, store.service, toast, t, taskDialog]);
 
     const toggleTask = useCallback(
         async (task: TaskRecord) => {
@@ -222,7 +253,7 @@ function Workspace() {
                 toast.error(describeError(error));
             }
         },
-        [store.service, toast]
+        [store.service, toast, t]
     );
 
     const moveNote = useCallback(
@@ -234,7 +265,7 @@ function Workspace() {
                 toast.error(describeError(error));
             }
         },
-        [store.service, toast]
+        [store.service, toast, t]
     );
 
     const openActivityTarget = useCallback(
@@ -252,7 +283,7 @@ function Workspace() {
                 else toast.info(t("toast.taskGone"));
             }
         },
-        [store.projects, store.notes, store.tasks, go, openNote, openTaskDialog, toast]
+        [store.projects, store.notes, store.tasks, go, openNote, openTaskDialog, toast, t]
     );
 
     const reorderProjects = useCallback(
@@ -430,6 +461,43 @@ function Workspace() {
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [createNote]);
+
+    // ─── NEW: Windows shell integration ─────────────────────────────────────
+    // "Notely - Create New Task" / "... Notes" open the matching view, and a
+    // `.txt` / `.md` opened through Notely becomes (or refreshes) a note.
+    // The IPC layer is registered synchronously, but the store needs a beat to
+    // read IndexedDB, so intents wait for `store.ready` before touching data. ───
+    const pendingLaunchRef = useRef<LaunchIntent | null>(null);
+    const [intentTick, setIntentTick] = useState(0);
+
+    const handleLaunchIntent = useCallback(
+        (intent: LaunchIntent) => {
+            pendingLaunchRef.current = intent;
+            setIntentTick((value) => value + 1);
+        },
+        []
+    );
+    useLaunchIntent(handleLaunchIntent);
+
+    useEffect(() => {
+        if (!intentTick) return;
+        if (!store.ready) return;
+        const intent = pendingLaunchRef.current;
+        if (!intent) return;
+        pendingLaunchRef.current = null;
+
+        if (intent.kind === "task") {
+            openTaskDialog(null);
+            return;
+        }
+        if (intent.kind === "note") {
+            void createNote({ open: true });
+            return;
+        }
+        if (intent.kind === "file") {
+            void openImportedDocument(intent.path);
+        }
+    }, [intentTick, store.ready, openTaskDialog, createNote, openImportedDocument]);
 
     const deletingProject = store.projects.find((project) => project.id === deletingProjectId) ?? null;
     const relationCounts = useMemo(

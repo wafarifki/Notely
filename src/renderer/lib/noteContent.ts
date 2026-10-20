@@ -17,7 +17,7 @@ function escapeHtml(text: string): string {
 
 /** Heuristic: does this string already contain markup we produced? */
 export function looksLikeHtml(value: string): boolean {
-    return /<\/?(p|div|br|b|strong|i|em|u|s|ul|ol|li|h[1-6]|blockquote|a|pre|code)\b/i.test(value);
+    return /<\/?(p|div|br|b|strong|i|em|u|s|ul|ol|li|h[1-6]|blockquote|a|pre|code|img)\b/i.test(value);
 }
 
 /** Convert a legacy plain-text body into editor-ready HTML. */
@@ -90,7 +90,10 @@ export function sanitizeNoteHtml(html: string): string {
 
     const allowed = new Set([
         "P", "DIV", "BR", "B", "STRONG", "I", "EM", "U", "S", "STRIKE",
-        "UL", "OL", "LI", "H1", "H2", "H3", "BLOCKQUOTE", "A", "PRE", "CODE", "SPAN"
+        "UL", "OL", "LI", "H1", "H2", "H3", "BLOCKQUOTE", "A", "PRE", "CODE", "SPAN",
+        // ─── NEW: images pasted or inserted into a note are part of the body,
+        // so the allowlist has to keep them or every save would delete them. ───
+        "IMG"
     ]);
 
     const walk = (node: Element) => {
@@ -106,6 +109,34 @@ export function sanitizeNoteHtml(html: string): string {
                 if (!/^https?:\/\//i.test(href)) child.removeAttribute("href");
                 child.setAttribute("rel", "noreferrer noopener");
                 child.setAttribute("target", "_blank");
+            } else if (child.tagName === "IMG") {
+                // ─── NEW: images only keep safe sources plus the handful of
+                // attributes the editor writes (size via the width declaration
+                // and alignment via display/margin in the style attribute). ───
+                const src = child.getAttribute("src") ?? "";
+                if (!/^(data:image\/|https?:\/\/)/i.test(src)) {
+                    child.remove();
+                    continue;
+                }
+                const allowedAttrs = new Set(["src", "alt", "width", "height", "style", "loading"]);
+                // ─── NEW: the style attribute is rebuilt from an allowlist of
+                // declarations, so pasted markup cannot smuggle in layout
+                // changes (position, transform, url(), …) through it.
+                // `float` and `clear` are included because they carry the
+                // image's left/right alignment written by the editor. ───
+                const style = child.getAttribute("style");
+                if (style) {
+                    const safe = style
+                        .split(";")
+                        .map((part) => part.trim())
+                        .filter((part) => /^(display|margin|margin-[a-z]+|width|float|clear)\s*:/i.test(part))
+                        .join("; ");
+                    if (safe) child.setAttribute("style", safe);
+                    else child.removeAttribute("style");
+                }
+                for (const attr of Array.from(child.attributes)) {
+                    if (!allowedAttrs.has(attr.name)) child.removeAttribute(attr.name);
+                }
             } else {
                 for (const attr of Array.from(child.attributes)) {
                     if (attr.name !== "class") child.removeAttribute(attr.name);

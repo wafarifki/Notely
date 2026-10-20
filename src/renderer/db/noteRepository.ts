@@ -9,6 +9,9 @@ export interface NoteInput {
     content: string;
     projectId: string | null;
     tags: string[];
+    // ─── NEW: set only when the note came from an opened `.txt` / `.md`.
+    // Omitted by every other caller, `update` leaves the stored value alone. ───
+    sourcePath?: string | null;
 }
 
 const MAX_TAGS = 12;
@@ -47,7 +50,10 @@ export function validateNoteInput(input: NoteInput, options: { allowEmpty?: bool
         title: title.slice(0, 200),
         content,
         projectId: input.projectId,
-        tags: normalizeTags(input.tags)
+        tags: normalizeTags(input.tags),
+        // ─── NEW: `undefined` means "leave whatever is stored", which is what
+        // every normal edit wants. ───
+        sourcePath: input.sourcePath
     };
 }
 
@@ -78,6 +84,8 @@ export function noteRepository(db: NotesDatabase) {
                 pinned: false,
                 favorite: false,
                 archived: false,
+                // ─── NEW: remember the imported file, if any. ───
+                sourcePath: data.sourcePath ?? null,
                 order: await nextOrder(),
                 createdAt: now,
                 updatedAt: now
@@ -98,10 +106,58 @@ export function noteRepository(db: NotesDatabase) {
                 content: data.content,
                 projectId: data.projectId,
                 tags: data.tags,
+                // ─── NEW: only overwrite the origin when the caller supplied one,
+                // so a plain edit never forgets where the note came from. ───
+                sourcePath: data.sourcePath ?? existing.sourcePath ?? null,
                 updatedAt: new Date().toISOString()
             };
             await db.notes.put(next);
             return next;
+        },
+
+        // ─── NEW: find the note previously imported from this file. ───
+        async findBySourcePath(sourcePath: string): Promise<NoteRecord | undefined> {
+            return db.notes.where("sourcePath").equals(sourcePath).first();
+        },
+
+        // ─── NEW: open-or-refresh the note for an imported `.txt` / `.md`.
+        // Opening the same file twice must not fill the list with duplicates,
+        // so a matching note is replaced in place instead of created again. ───
+        async importDocument(input: {
+            title: string;
+            content: string;
+            sourcePath: string;
+            tags?: string[];
+        }): Promise<NoteRecord> {
+            const existing = await db.notes.where("sourcePath").equals(input.sourcePath).first();
+            const now = new Date().toISOString();
+            if (existing) {
+                const next: NoteRecord = {
+                    ...existing,
+                    title: input.title.slice(0, 200),
+                    content: input.content,
+                    archived: false,
+                    updatedAt: now
+                };
+                await db.notes.put(next);
+                return next;
+            }
+            const record: NoteRecord = {
+                id: createId("note"),
+                title: input.title.slice(0, 200),
+                content: input.content,
+                projectId: null,
+                tags: normalizeTags(input.tags ?? []),
+                pinned: false,
+                favorite: false,
+                archived: false,
+                sourcePath: input.sourcePath,
+                order: await nextOrder(),
+                createdAt: now,
+                updatedAt: now
+            };
+            await db.notes.add(record);
+            return record;
         },
 
         async setFlag(id: string, flag: "pinned" | "favorite"): Promise<NoteRecord> {

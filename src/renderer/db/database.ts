@@ -16,7 +16,9 @@ export const DB_NAME = "notely";
 // ─── NEW: version 4 adds an `archived` flag to notes and tasks. ───
 // ─── NEW: version 5 adds `hasSeenTour` so the welcome tour only auto-runs once. ───
 // ─── NEW: version 6 adds the optional task checklist. ───
-export const DB_VERSION = 6;
+// ─── NEW: version 7 indexes `sourcePath` so a `.txt` / `.md` opened twice
+// re-uses its note instead of creating a duplicate. ───
+export const DB_VERSION = 7;
 
 export class NotesDatabase extends Dexie {
     projects!: Table<ProjectRecord, string>;
@@ -132,6 +134,17 @@ export class NotesDatabase extends Dexie {
                         if (!Array.isArray(row.checklist)) row.checklist = [];
                     });
             });
+
+        // ─── NEW: v7 only adds the `sourcePath` index used by file imports.
+        // No upgrade function is needed: notes without the field simply do not
+        // appear in that index. ───
+        this.version(DB_VERSION).stores({
+            projects: "id, order, archived, color, updatedAt",
+            notes: "id, projectId, pinned, favorite, archived, order, updatedAt, *tags, sourcePath",
+            tasks: "id, projectId, completed, favorite, archived, dueAt, order",
+            activity: "id, createdAt, entityType, entityId",
+            settings: "id"
+        });
     }
 }
 

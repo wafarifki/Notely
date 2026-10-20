@@ -482,6 +482,46 @@
     overflow-x: auto;
 }
 
+/* ─── NEW: images in a note ──────────────────────────────────────────────────
+   Size and alignment live in the element's inline style (written by the
+   editor and re-validated by the sanitizer), so these rules only provide the
+   baseline: never overflow the page, and show a clear selection ring. */
+.rte-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 6px;
+    cursor: pointer;
+    vertical-align: top;
+    transition: box-shadow var(--duration-fast) var(--ease-calm);
+}
+
+/* Floated images (left/right alignment) need a line of space after the last
+   one, otherwise the following paragraph can start beside the float. */
+.rte-content::after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+.rte-content img.is-selected {
+    box-shadow: 0 0 0 2px var(--accent-purple);
+}
+
+.rte-button-danger:hover {
+    background: var(--danger-soft);
+    color: var(--danger);
+}
+
+.rte-notice {
+    margin: 0;
+    padding: 6px 10px;
+    border: 1px solid var(--line);
+    border-bottom: none;
+    background: var(--surface-sunken);
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
 .note-editor-tags {
     display: flex;
     align-items: flex-start;
@@ -569,6 +609,14 @@
     font-size: 12.5px;
     color: var(--text-secondary);
     line-height: 1.55;
+}
+
+/* ─── NEW: paired action buttons in a settings section (Windows integration). ─── */
+.settings-button-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
 }
 
 .settings-form {

@@ -11,6 +11,7 @@ import { formatFullDate } from "@/lib/dates";
 import { useWorkflows } from "@/feature-hooks";
 import { useI18n } from "@/i18n";
 import { LANGUAGE_OPTIONS } from "@/i18n/translations";
+import { getDesktopBridge, isElectronRuntime } from "@/platform/desktop";
 import { AppearanceSection } from "./AppearanceSection";
 
 type PendingAction = "clear" | null;
@@ -329,6 +330,32 @@ export function SettingsPage() {
                 </div>
                 <p className="settings-text">{t("language.hint")}</p>
             </section>
+
+            {/* ─── NEW: Windows file association. Windows hash-signs the per-user
+                default app, so an installer cannot claim `.txt` on its own.
+                These buttons hand the user the official Windows UI. ─── */}
+            {isElectronRuntime() ? (
+                <section className="settings-section panel" data-tour="windows-integration">
+                    <h2 className="settings-heading">{t("settings.windowsIntegration")}</h2>
+                    <p className="settings-text">{t("settings.windowsIntegrationHint")}</p>
+                    <div className="settings-button-row">
+                        <button
+                            type="button"
+                            className="button button-primary button-small"
+                            onClick={() => void getDesktopBridge()?.openDefaultApps(".txt")}
+                        >
+                            {t("settings.setDefaultTxt")}
+                        </button>
+                        <button
+                            type="button"
+                            className="button button-ghost button-small"
+                            onClick={() => void getDesktopBridge()?.openDefaultApps(".md")}
+                        >
+                            {t("settings.setDefaultMd")}
+                        </button>
+                    </div>
+                </section>
+            ) : null}
 
             <section className="settings-section panel">
                 <h2 className="settings-heading">{t("settings.preferences")}</h2>

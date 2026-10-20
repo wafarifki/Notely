@@ -45,6 +45,11 @@ const en = {
     "settings.yourData": "Your data",
     "settings.about": "About Notely",
     "settings.language": "Language",
+    // ─── NEW: Windows file association (see SettingsPage). ───
+    "settings.windowsIntegration": "Windows integration",
+    "settings.windowsIntegrationHint": "Windows keeps your default apps in a protected setting, so allow Notely to open these files once. Choose Notely in the list that opens.",
+    "settings.setDefaultTxt": "Open .txt files with Notely",
+    "settings.setDefaultMd": "Open .md files with Notely",
     "settings.helpLegal": "About & legal",
     "settings.supportHint": "Answers to common questions and troubleshooting",
     "settings.whatsNewHint": "See what changed in this version",
@@ -271,6 +276,17 @@ const en = {
     "note.linkApply": "Apply link",
     "note.undo": "Undo",
     "note.redo": "Redo",
+    // ─── NEW: images inside notes ───
+    "note.insertImage": "Insert image",
+    "note.pasteImageHint": "Paste or drop an image into the note",
+    "note.imageTooLarge": "That image is too large (max 12 MB).",
+    "note.imageFailed": "That image could not be read.",
+    "note.alignLeft": "Align image left",
+    "note.alignCenter": "Center image",
+    "note.alignRight": "Align image right",
+    "note.imageSmaller": "Make image smaller",
+    "note.imageLarger": "Make image larger",
+    "note.imageDelete": "Remove image",
     "note.saveFailedBody": "Your changes could not be saved.",
     "note.retry": "Retry",
     "note.editTitle": "Edit title",
@@ -473,6 +489,10 @@ const en = {
 
     // ── Toasts ──
     "toast.noteCreated": "Note created.",
+    // ─── NEW: a `.txt` / `.md` opened through Windows ───
+    "toast.fileImported": "File opened in a new note.",
+    "toast.fileRefreshed": "Note refreshed from the file.",
+    "toast.fileUnreadable": "This file could not be opened.",
     "toast.noteDeleted": "Note deleted.",
     "toast.noteMoved": "Note moved.",
     "toast.noteMovedUnassigned": "Note moved to Unassigned.",
@@ -644,6 +664,11 @@ const id: Dictionary = {
     "settings.yourData": "Data Anda",
     "settings.about": "Tentang Notely",
     "settings.language": "Bahasa",
+    // ─── NEW: Windows file association (see SettingsPage). ───
+    "settings.windowsIntegration": "Integrasi Windows",
+    "settings.windowsIntegrationHint": "Windows menyimpan aplikasi default di pengaturan terproteksi, jadi izinkan Notely membuka file ini sekali. Pilih Notely pada daftar yang muncul.",
+    "settings.setDefaultTxt": "Buka file .txt dengan Notely",
+    "settings.setDefaultMd": "Buka file .md dengan Notely",
     "settings.helpLegal": "Bantuan & legal",
     "settings.supportHint": "Jawaban pertanyaan umum dan penanganan masalah",
     "settings.whatsNewHint": "Lihat perubahan pada versi ini",
@@ -862,6 +887,17 @@ const id: Dictionary = {
     "note.linkApply": "Terapkan tautan",
     "note.undo": "Urungkan",
     "note.redo": "Ulangi",
+    // ─── NEW: images inside notes ───
+    "note.insertImage": "Sisipkan gambar",
+    "note.pasteImageHint": "Tempel atau lepas gambar ke dalam catatan",
+    "note.imageTooLarge": "Gambar terlalu besar (maks 12 MB).",
+    "note.imageFailed": "Gambar tidak bisa dibaca.",
+    "note.alignLeft": "Rata kiri gambar",
+    "note.alignCenter": "Rata tengah gambar",
+    "note.alignRight": "Rata kanan gambar",
+    "note.imageSmaller": "Perkecil gambar",
+    "note.imageLarger": "Perbesar gambar",
+    "note.imageDelete": "Hapus gambar",
     "note.saveFailedBody": "Perubahan Anda gagal disimpan.",
     "note.retry": "Coba lagi",
     "note.editTitle": "Edit judul",
@@ -1064,6 +1100,10 @@ const id: Dictionary = {
 
     // ── Toasts ──
     "toast.noteCreated": "Catatan dibuat.",
+    // ─── NEW: a `.txt` / `.md` opened through Windows ───
+    "toast.fileImported": "File dibuka di catatan baru.",
+    "toast.fileRefreshed": "Catatan diperbarui dari file.",
+    "toast.fileUnreadable": "File ini tidak bisa dibuka.",
     "toast.noteDeleted": "Catatan dihapus.",
     "toast.noteMoved": "Catatan dipindahkan.",
     "toast.noteMovedUnassigned": "Catatan dipindahkan ke Tanpa proyek.",

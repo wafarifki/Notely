@@ -37,6 +37,13 @@ export interface NotesService {
     reorderProjects(orderedIds: string[]): Promise<ProjectRecord[]>;
     createNote(input: NoteInput): Promise<NoteRecord>;
     updateNote(id: string, input: NoteInput): Promise<NoteRecord>;
+    // ─── NEW: open a `.txt` / `.md` as a note. Re-opening the same file
+    // refreshes its note instead of creating a duplicate. ───
+    importDocument(input: {
+        title: string;
+        content: string;
+        sourcePath: string;
+    }): Promise<{ note: NoteRecord; created: boolean }>;
     toggleNoteFlag(id: string, flag: "pinned" | "favorite"): Promise<NoteRecord>;
     moveNote(id: string, projectId: string | null): Promise<NoteRecord>;
     deleteNote(id: string): Promise<void>;
@@ -264,6 +271,22 @@ export function createNotesService(db: NotesDatabase): NotesService {
 
         async reorderNotes(orderedIds) {
             return notes.reorder(orderedIds);
+        },
+
+        // ─── NEW: file-association import. The repository decides whether this
+        // refreshes an existing note or creates a new one. ───
+        async importDocument(input) {
+            const existing = await notes.findBySourcePath(input.sourcePath);
+            const note = await notes.importDocument(input);
+            await activity.add({
+                kind: existing ? "updated" : "created",
+                entityType: "note",
+                entityId: note.id,
+                title: note.title || snippet(note.content),
+                projectId: note.projectId,
+                actorId: (await settings.get()).avatarId, actorImage: (await settings.get()).avatarImage, actorName: (await settings.get()).displayName
+            });
+            return { note, created: !existing };
         },
 
         async createTask(input) {

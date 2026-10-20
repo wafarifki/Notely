@@ -35,6 +35,8 @@ interface BackupNote {
     favorite: boolean;
     // ─── NEW: backups keep the archived flag so restores are faithful. ───
     archived: boolean;
+    // ─── NEW: the imported file a note came from, when there is one. ───
+    sourcePath?: string | null;
     order: number;
     createdAt: string;
     updatedAt: string;
@@ -241,6 +243,8 @@ export function parseBackup(input: unknown): BackupFile {
             pinned: asBoolean(item.pinned ?? false, `${path}.pinned`),
             favorite: asBoolean(item.favorite ?? false, `${path}.favorite`),
             archived: asBoolean(item.archived ?? false, `${path}.archived`),
+            // ─── NEW: optional; older backups have no file origin. ───
+            sourcePath: typeof item.sourcePath === "string" ? item.sourcePath : null,
             order: asInteger(item.order, `${path}.order`),
             createdAt: asDate(item.createdAt, `${path}.createdAt`),
             updatedAt: asDate(item.updatedAt, `${path}.updatedAt`)

@@ -13,7 +13,14 @@ files:
     - package.json
     - "!dist-electron/*.map"
 asar: true
-asarUnpack: []
+# ─── NEW: NSIS executes this with PowerShell at install time, so it must be a
+# real file on disk — not something buried inside app.asar. `extraResources`
+# copies it to `resources/installer/context-menu.ps1` next to the app.
+# (The old approach copied it into `dist/`, which ended up INSIDE the asar and
+# was therefore not executable, which is why no context-menu entries appeared.)
+extraResources:
+    - from: build/installer/context-menu.ps1
+      to: installer/context-menu.ps1
 win:
     target:
         - target: nsis
@@ -24,9 +31,36 @@ win:
             - x64
     icon: assets/icon.ico
     requestedExecutionLevel: asInvoker
+    # ─── NEW: Windows Explorer integration ──────────────────────────────────
+    # `fileAssociations` writes the HKCU/HKLM ProgID for `.txt` and `.md`, so
+    # double-clicking a document (or "Open with > Notely") launches Notely with
+    # the file path as the first argument. The installer offers this in
+    # "Choose Components"; both install modes are supported.
+    fileAssociations:
+        - ext: md
+          name: Notely Markdown Document
+          description: Markdown document
+          icon: assets/icon.ico
+          role: Editor
+        - ext: markdown
+          name: Notely Markdown Document
+          description: Markdown document
+          icon: assets/icon.ico
+          role: Editor
+        - ext: txt
+          name: Notely Text Document
+          description: Text document
+          icon: assets/icon.ico
+          role: Editor
 nsis:
     oneClick: false
-    perMachine: false
+    # ─── NEW: `perMachine: true` makes electron-builder ask on the first page
+    # whether to install for the current user or for everyone. Choosing
+    # "everyone" elevates once and writes the shortcuts and file associations
+    # to HKLM, which is what makes the right-click menu appear for all accounts.
+    # Without this, "all users" is never offered. ───
+    perMachine: true
+    allowElevation: true
     allowToChangeInstallationDirectory: true
     createDesktopShortcut: true
     createStartMenuShortcut: true
@@ -37,6 +71,10 @@ nsis:
     installerIcon: assets/icon.ico
     uninstallerIcon: assets/icon.ico
     installerHeaderIcon: assets/icon.ico
+    # ─── NEW: NSIS hooks. `customInstall` / `customUnInstall` live in this file
+    # and call resources/installer/context-menu.ps1 to add/remove the Explorer
+    # right-click entries for both the current-user and all-users installs. ───
+    include: build/installer/installer.nsh
 portable:
     artifactName: ${productName}-${version}-${arch}-portable.${ext}
     unicode: true

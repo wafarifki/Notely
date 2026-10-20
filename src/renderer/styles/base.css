@@ -10,6 +10,21 @@ body,
     height: 100%;
 }
 
+/* ─── NEW: the app is a single full-height column. Without this the canvas
+   only took its content height when the window was resized smaller than the
+   rendered content, leaving a strip of body background at the bottom. ─── */
+#root {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+#root > * {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
 body {
     margin: 0;
     font-family: var(--font-sans);

@@ -9,6 +9,9 @@ import { useI18n } from "@/i18n";
 function WindowControls() {
     const [maximized, setMaximized] = useState(false);
     const bridge = getDesktopBridge();
+    // ─── NEW: the hook must run before the early return below, otherwise it is
+    // called conditionally and React's rules of hooks are violated. ───
+    const { t } = useI18n();
 
     useEffect(() => {
         if (!bridge) return;
@@ -17,7 +20,6 @@ function WindowControls() {
     }, [bridge]);
 
     if (!bridge) return null;
-    const { t } = useI18n();
 
     return (
         <div className="window-controls" role="toolbar" aria-label={t("a11y.windowControls")}>

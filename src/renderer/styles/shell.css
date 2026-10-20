@@ -32,15 +32,27 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    min-height: 0;
+    /* ─── NEW: `100%` only resolves because html/body/#root are 100%; adding
+       `100dvh` as a floor keeps the panel filling the window on Windows when
+       the document height is reported before a resize settles. ─── */
+    min-height: 100dvh;
+    height: 100dvh;
     padding: 0;
+    overflow: hidden;
 }
 
 .app-canvas.electron-runtime .app-panel {
     flex: 1 1 auto;
     max-width: none;
-    height: auto;
+    /* ─── OLD CODE (kept for reference) ───
+       height: auto;
+       min-height: 0;
+       `height: auto` on a flex child of a column container let the panel keep
+       its content height, so it did not follow the window. `height: 100%`
+       plus `min-height: 0` makes it fill the remaining space and shrink. ─── */
+    height: 100%;
     min-height: 0;
+    min-width: 0;
     overflow: hidden;
     border: none;
     border-radius: 0;
@@ -55,13 +67,21 @@
     position: fixed;
     top: 0;
     right: 0;
-    z-index: 130;
+    /* ─── NEW: must sit above `.drag-strip` (z-index: 80). At 130 it does, but
+       the strip is also as tall as the buttons, so a stale `--z-modal` value
+       in a themed build could hide them. Keep this explicit and high. ─── */
+    z-index: 200;
     display: none;
     gap: 0;
     padding: 0;
     background: transparent;
     -webkit-app-region: no-drag;
-    pointer-events: none;
+    /* ─── OLD CODE (kept for reference) ───
+       pointer-events: none;
+       The container opted out of hit-testing and only the buttons opted back
+       in. Combined with the drag strip above it, clicks on minimize/maximize/
+       close were swallowed by the window drag region. ─── */
+    pointer-events: auto;
 }
 
 .electron-runtime .window-controls {
@@ -101,7 +121,14 @@
     inset: 0 0 auto 0;
     display: block;
     height: 34px;
-    z-index: var(--z-modal);
+    /* ─── OLD CODE (kept for reference) ───
+       z-index: var(--z-modal);
+       At the same stacking level as modals, the strip covered the window
+       buttons. It is chrome, not content, so it belongs below the controls
+       and above the page. ─── */
+    z-index: var(--z-drag);
+    /* Leave the control cluster un-draggable so the buttons receive clicks. */
+    right: 138px;
     -webkit-app-region: drag;
 }
 
@@ -512,9 +539,13 @@
         padding: 0;
     }
 
-    .electron-runtime .app-panel {
-        height: auto;
-    }
+    /* ─── OLD CODE (kept for reference) ───
+       .electron-runtime .app-panel { height: auto; }
+       This reset the panel back to content height on any window narrower than
+       1199px, which is what made it stop tracking the window. Dark mode toggling
+       and any resize below 1199px hit it. The desktop shell must fill the
+       window at every width; the mobile rules further down already handle the
+       < 800px case explicitly. ─── */
 
     :root {
         --content-padding: 22px;
@@ -535,7 +566,12 @@
     }
 
     .electron-runtime .app-panel {
-        height: auto;
+        /* ─── OLD CODE (kept for reference) ───
+           height: auto;
+           This is what broke the small-window case: below 1199px the desktop
+           panel was told to size to its content again. ─── */
+        height: 100%;
+        min-height: 0;
     }
 
     .app-sidebar {
