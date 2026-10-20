@@ -1,0 +1,43 @@
+electronDist: .cache/electron-dist
+appId: com.notely.desktop
+productName: Notely
+copyright: Copyright © 2026 Notely
+directories:
+    output: release
+    buildResources: assets
+files:
+    - dist/**/*
+    - dist-electron/**/*
+    - assets/icon.ico
+    - assets/icon.png
+    - package.json
+    - "!dist-electron/*.map"
+asar: true
+asarUnpack: []
+win:
+    target:
+        - target: nsis
+          arch:
+            - x64
+        - target: portable
+          arch:
+            - x64
+    icon: assets/icon.ico
+    requestedExecutionLevel: asInvoker
+nsis:
+    oneClick: false
+    perMachine: false
+    allowToChangeInstallationDirectory: true
+    createDesktopShortcut: true
+    createStartMenuShortcut: true
+    shortcutName: Notely
+    uninstallDisplayName: Notely
+    deleteAppDataOnUninstall: false
+    runAfterFinish: true
+    installerIcon: assets/icon.ico
+    uninstallerIcon: assets/icon.ico
+    installerHeaderIcon: assets/icon.ico
+portable:
+    artifactName: ${productName}-${version}-${arch}-portable.${ext}
+    unicode: true
+publish: null

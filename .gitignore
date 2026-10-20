@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-electron/
+release/
+.stage-app/
+
+# Local build caches (Electron runtime, electron-builder tools, NSIS)
+.cache/
+
+# Test and analysis artifacts
+coverage/
+_screenshots/
+_analysis/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Editors and OS
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

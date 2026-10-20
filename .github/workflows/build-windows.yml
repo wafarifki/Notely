@@ -1,0 +1,84 @@
+name: Build Windows installer and portable app
+
+on:
+    push:
+        branches: [main, master]
+        tags: ["v*"]
+    pull_request:
+    workflow_dispatch:
+
+concurrency:
+    group: windows-build-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    build:
+        name: Lint, test, build and package (Windows x64)
+        runs-on: windows-latest
+        timeout-minutes: 45
+        env:
+            NODE_OPTIONS: "--max-old-space-size=4096"
+            CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Set up Node.js LTS (22)
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: npm
+
+            - name: Install dependencies from lockfile
+              run: npm ci
+
+            - name: Typecheck
+              run: npm run typecheck
+
+            - name: Lint
+              run: npm run lint
+
+            - name: Test
+              run: npm run test
+
+            - name: Build renderer and Electron main
+              run: npm run build
+
+            - name: Package NSIS installer and portable executable
+              run: node scripts/package-win.mjs nsis portable
+              env:
+                  ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/electron-builder-cache
+                  ELECTRON_CACHE: ${{ runner.temp }}/electron-cache
+
+            - name: Verify packaged executable launches
+              run: npm run verify:exe
+
+            - name: List release artifacts
+              shell: pwsh
+              run: Get-ChildItem release -Filter *.exe | Format-Table Name, Length
+
+            - name: Upload installer
+              uses: actions/upload-artifact@v4
+              with:
+                  name: notely-windows-x64-installer
+                  path: release/*Setup*.exe
+                  if-no-files-found: error
+                  retention-days: 14
+
+            - name: Upload portable executable
+              uses: actions/upload-artifact@v4
+              with:
+                  name: notely-windows-x64-portable
+                  path: release/*-portable.exe
+                  if-no-files-found: error
+                  retention-days: 14
+
+            - name: Upload desktop screenshot from the packaged app
+              uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: notely-packaged-app-screenshot
+                  path: _screenshots/desktop/*.png
+                  if-no-files-found: ignore
+                  retention-days: 7
