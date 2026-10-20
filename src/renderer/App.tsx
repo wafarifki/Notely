@@ -1,21 +1,25 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DataProvider, describeError, useStore } from "@/app/store";
 import { useHashRoute, type Route } from "@/app/router";
 import { AppShell } from "@/app/AppShell";
 import { UiActionsProvider, type UiActions } from "@/app/ui";
 import { WorkflowsProvider, type AppWorkflows } from "@/feature-hooks";
 import { ToastProvider, useToast } from "@/components/Toasts";
+import { I18nProvider, useI18n } from "@/i18n";
 import { ProjectDialog } from "@/components/ProjectDialog";
 import { TaskDialog } from "@/features/tasks/TaskDialog";
 import { DeleteProjectDialog } from "@/features/projects/DeleteProjectDialog";
 import { DeleteConfirm } from "@/components/DeleteConfirm";
 import { SearchOverlay } from "@/features/search/SearchOverlay";
+import { TourOverlay } from "@/features/tour/TourOverlay";
+import { TourProvider, useUiTour } from "@/features/tour/useUiTour";
 import { HomePage } from "@/features/home/HomePage";
 import { NotesPage } from "@/features/notes/NotesPage";
 import { NoteEditorPage } from "@/features/notes/NoteEditorPage";
 import { TasksPage } from "@/features/tasks/TasksPage";
 import { ProjectPage } from "@/features/projects/ProjectPage";
 import { ActivityPage } from "@/features/activity/ActivityPage";
+import { ArchivePage } from "@/features/archive/ArchivePage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 import { PrivacyPage, SupportPage, WhatsNewPage } from "@/features/info/InfoPages";
 import { PRIMARY_COLORS, type NoteRecord, type TaskRecord } from "@/db/schema";
@@ -29,6 +33,7 @@ interface ProjectDialogState {
 function Workspace() {
     const store = useStore();
     const toast = useToast();
+    const { t } = useI18n();
     const { route, navigate } = useHashRoute();
     const [searchOpen, setSearchOpen] = useState(false);
     const [projectDialog, setProjectDialog] = useState<ProjectDialogState | null>(null);
@@ -37,6 +42,10 @@ function Workspace() {
     const [taskToDelete, setTaskToDelete] = useState<TaskRecord | null>(null);
     const [taskDialog, setTaskDialog] = useState<{ taskId: string | null; defaultProjectId: string | null } | null>(null);
     const [noteFocusTitle, setNoteFocusTitle] = useState(false);
+    // ─── OLD CODE (kept for reference) ───
+    // const tour = useUiTour();
+    // ─── NEW: the sidebar no longer exposes a tour button; AutoStartTour owns
+    // starting the tour and Settings can replay it. ───
 
     const go = useCallback(
         (next: Route) => {
@@ -46,13 +55,59 @@ function Workspace() {
         [navigate]
     );
 
+    // ─── OLD CODE (kept for reference) ───
+    // const toggleProjects = useCallback(() => {
+    //     void store.service.settings.update({ projectsExpanded: !store.settings.projectsExpanded });
+    // }, [store.settings.projectsExpanded, store.service]);
+    // ─── NEW: optimistic sections -------------------------------------------------
+    // Flipping `projectsExpanded` used to go straight to IndexedDB and the UI
+    // only moved once the write + live query came back (~60-70 ms measured).
+    // That made the Projects dropdown feel like it hung after a click. These
+    // overrides render the new state immediately; the database catches up in
+    // the background and the override is dropped once it agrees. ───
+    const [expandedOverride, setExpandedOverride] = useState<boolean | null>(null);
+    const [collapsedOverride, setCollapsedOverride] = useState<boolean | null>(null);
+
+    const projectsExpanded = expandedOverride ?? store.settings.projectsExpanded;
+    const sidebarCollapsed = collapsedOverride ?? store.settings.sidebarCollapsed;
+
+    useEffect(() => {
+        if (expandedOverride !== null && store.settings.projectsExpanded === expandedOverride) {
+            setExpandedOverride(null);
+        }
+    }, [store.settings.projectsExpanded, expandedOverride]);
+
+    useEffect(() => {
+        if (collapsedOverride !== null && store.settings.sidebarCollapsed === collapsedOverride) {
+            setCollapsedOverride(null);
+        }
+    }, [store.settings.sidebarCollapsed, collapsedOverride]);
+
     const toggleSidebar = useCallback(() => {
-        void store.service.settings.update({ sidebarCollapsed: !store.settings.sidebarCollapsed });
-    }, [store.settings.sidebarCollapsed, store.service]);
+        const next = !sidebarCollapsed;
+        setCollapsedOverride(next);
+        store.service.settings
+            .update({ sidebarCollapsed: next })
+            .catch(() => setCollapsedOverride(null));
+    }, [sidebarCollapsed, store.service]);
 
     const toggleProjects = useCallback(() => {
-        void store.service.settings.update({ projectsExpanded: !store.settings.projectsExpanded });
-    }, [store.settings.projectsExpanded, store.service]);
+        const next = !projectsExpanded;
+        setExpandedOverride(next);
+        store.service.settings
+            .update({ projectsExpanded: next })
+            .catch(() => setExpandedOverride(null));
+    }, [projectsExpanded, store.service]);
+
+    // ─── NEW: open the section outright. Creating a project calls this so the
+    // new entry is always visible, even if the section had been collapsed. ───
+    const expandProjects = useCallback(() => {
+        if (projectsExpanded) return;
+        setExpandedOverride(true);
+        store.service.settings
+            .update({ projectsExpanded: true })
+            .catch(() => setExpandedOverride(null));
+    }, [projectsExpanded, store.service]);
 
     const openTaskDialog = useCallback((task?: TaskRecord | null, defaultProjectId?: string | null) => {
         setTaskDialog({ taskId: task?.id ?? null, defaultProjectId: defaultProjectId ?? null });
@@ -75,7 +130,7 @@ function Workspace() {
                     projectId: options?.projectId ?? null,
                     tags: []
                 });
-                toast.success("Note created.");
+                toast.success(t("toast.noteCreated"));
                 if (options?.open !== false) {
                     openNote(note.id, { focusTitle: true });
                 }
@@ -94,7 +149,7 @@ function Workspace() {
         async (strategy: "unassign" | "delete") => {
             if (!deletingProjectId) return;
             await store.service.deleteProject(deletingProjectId, strategy);
-            toast.success(strategy === "unassign" ? "Project deleted. Items moved to Unassigned." : "Project deleted.");
+            toast.success(t(strategy === "unassign" ? "toast.projectDeletedUnassigned" : "toast.projectDeleted"));
             setDeletingProjectId(null);
             if (route.name === "project" && route.id === deletingProjectId) {
                 go({ name: "home" });
@@ -107,7 +162,7 @@ function Workspace() {
         if (!noteToDelete) return;
         try {
             await store.service.deleteNote(noteToDelete.id);
-            toast.success("Note deleted.");
+            toast.success(t("toast.noteDeleted"));
             if (route.name === "note" && route.id === noteToDelete.id) {
                 go({ name: "notes" });
             }
@@ -121,7 +176,7 @@ function Workspace() {
         if (!taskToDelete) return;
         try {
             await store.service.deleteTask(taskToDelete.id);
-            toast.success("Task deleted.");
+            toast.success(t("toast.taskDeleted"));
             if (taskDialog?.taskId === taskToDelete.id) {
                 setTaskDialog(null);
             }
@@ -158,7 +213,11 @@ function Workspace() {
             try {
                 await store.service.toggleNoteFlag(note.id, flag);
                 const turningOn = !note[flag];
-                toast.success(flag === "pinned" ? (turningOn ? "Note pinned." : "Note unpinned.") : turningOn ? "Added to favorites." : "Removed from favorites.");
+                toast.success(
+                    flag === "pinned"
+                        ? t(turningOn ? "toast.notePinned" : "toast.noteUnpinned")
+                        : t(turningOn ? "toast.addedFavorite" : "toast.removedFavorite")
+                );
             } catch (error) {
                 toast.error(describeError(error));
             }
@@ -170,7 +229,7 @@ function Workspace() {
         async (note: NoteRecord, projectId: string | null) => {
             try {
                 await store.service.moveNote(note.id, projectId);
-                toast.success(projectId ? "Note moved." : "Note moved to Unassigned.");
+                toast.success(t(projectId ? "toast.noteMoved" : "toast.noteMovedUnassigned"));
             } catch (error) {
                 toast.error(describeError(error));
             }
@@ -183,14 +242,14 @@ function Workspace() {
             if (!entityId) return;
             if (entityType === "project") {
                 if (store.projects.some((project) => project.id === entityId)) go({ name: "project", id: entityId });
-                else toast.info("That project no longer exists.");
+                else toast.info(t("toast.projectGone"));
             } else if (entityType === "note") {
                 if (store.notes.some((note) => note.id === entityId)) openNote(entityId);
-                else toast.info("That note no longer exists.");
+                else toast.info(t("toast.noteGone"));
             } else {
                 const task = store.tasks.find((row) => row.id === entityId);
                 if (task) openTaskDialog(task);
-                else toast.info("That task no longer exists.");
+                else toast.info(t("toast.taskGone"));
             }
         },
         [store.projects, store.notes, store.tasks, go, openNote, openTaskDialog, toast]
@@ -229,6 +288,71 @@ function Workspace() {
         [store.service, toast]
     );
 
+    // ─── NEW: archive or restore a note. Archived notes leave the active lists
+    // but stay available on the Archive page. ───
+    const archiveNote = useCallback(
+        async (note: NoteRecord, archived: boolean) => {
+            try {
+                await store.service.archiveNote(note.id, archived);
+                toast.success(t(archived ? "toast.noteArchived" : "toast.noteRestored"));
+            } catch (error) {
+                toast.error(describeError(error));
+            }
+        },
+        [store.service, toast, t]
+    );
+
+    // ─── NEW: archive or restore a task. ───
+    const archiveTask = useCallback(
+        async (task: TaskRecord, archived: boolean) => {
+            try {
+                await store.service.archiveTask(task.id, archived);
+                toast.success(t(archived ? "toast.taskArchived" : "toast.taskRestored"));
+            } catch (error) {
+                toast.error(describeError(error));
+            }
+        },
+        [store.service, toast, t]
+    );
+
+    // ─── OLD CODE (kept for reference) ───
+    // const workflows = useMemo<AppWorkflows>(
+    //     () => ({
+    //         go,
+    //         openSearch: () => setSearchOpen(true),
+    //         openProjectDialog: (request) => setProjectDialog(request),
+    //         requestDeleteProject,
+    //         toggleProjectArchive: (projectId) => {
+    //             const project = store.projects.find((row) => row.id === projectId);
+    //             if (!project) return;
+    //             store.service
+    //                 .archiveProject(projectId, !project.archived)
+    //                 .then(() => toast.success(t(project.archived ? "toast.projectRestored" : "toast.projectArchived")))
+    //                 .catch((error: unknown) => toast.error(describeError(error)));
+    //         },
+    //         openNote,
+    //         createNote,
+    //         openNoteDialog: (note) => openNote(note.id),
+    //         requestDeleteNote: (note) => setNoteToDelete(note),
+    //         toggleNoteFlag,
+    //         moveNote,
+    //         openTaskDialog,
+    //         requestDeleteTask: (task) => setTaskToDelete(task),
+    //         toggleTask,
+    //         toggleTaskFavorite,
+    //         reorderTasks,
+    //         filterByTag: (tag) => go({ name: "notes", tag }),
+    //         reorderNotes,
+    //         reorderProjects,
+    //         openActivityTarget
+    //     }),
+    //     [
+    //         go, requestDeleteProject, store.projects, store.service, toast, openNote,
+    //         createNote, toggleNoteFlag, moveNote, openTaskDialog, toggleTask,
+    //         toggleTaskFavorite, reorderTasks, reorderNotes, reorderProjects, openActivityTarget
+    //     ]
+    // );
+    // ─── NEW: adds archiveNote/archiveTask and keeps the project toggle intact. ───
     const workflows = useMemo<AppWorkflows>(
         () => ({
             go,
@@ -240,17 +364,19 @@ function Workspace() {
                 if (!project) return;
                 store.service
                     .archiveProject(projectId, !project.archived)
-                    .then(() => toast.success(project.archived ? "Project restored." : "Project archived."))
+                    .then(() => toast.success(t(project.archived ? "toast.projectRestored" : "toast.projectArchived")))
                     .catch((error: unknown) => toast.error(describeError(error)));
             },
             openNote,
             createNote,
             openNoteDialog: (note) => openNote(note.id),
             requestDeleteNote: (note) => setNoteToDelete(note),
+            archiveNote,
             toggleNoteFlag,
             moveNote,
             openTaskDialog,
             requestDeleteTask: (task) => setTaskToDelete(task),
+            archiveTask,
             toggleTask,
             toggleTaskFavorite,
             reorderTasks,
@@ -265,11 +391,14 @@ function Workspace() {
             store.projects,
             store.service,
             toast,
+            t,
             openNote,
             createNote,
+            archiveNote,
             toggleNoteFlag,
             moveNote,
             openTaskDialog,
+            archiveTask,
             toggleTask,
             toggleTaskFavorite,
             reorderTasks,
@@ -320,27 +449,39 @@ function Workspace() {
         return PRIMARY_COLORS.find((color) => !used.has(color)) ?? "purple";
     }, [store.projects]);
 
+    // ─── NEW: hand the shell the optimistic values so sidebar toggles paint
+    // immediately instead of waiting for the database round-trip. ───
+    const shellSettings = useMemo(
+        () => ({ ...store.settings, projectsExpanded, sidebarCollapsed }),
+        [store.settings, projectsExpanded, sidebarCollapsed]
+    );
+
     return (
         <WorkflowsProvider value={workflows}>
             <UiActionsProvider value={uiActions}>
                 {store.error ? (
                     <div className="fatal-banner" role="alert">
-                        Local storage problem: {store.error}
+                        {t("toast.storageProblem")} {store.error}
                         <button type="button" className="button button-small button-ghost" onClick={() => window.location.reload()}>
-                            Reload
+                            {t("toast.reload")}
                         </button>
                     </div>
                 ) : null}
                 <AppShell
                     route={route}
                     navigate={go}
-                    settings={store.settings}
+                    settings={shellSettings}
                     onOpenSearch={() => setSearchOpen(true)}
                     onNewProject={() => setProjectDialog({ mode: "create" })}
                     onToggleSidebar={toggleSidebar}
                     onToggleProjects={toggleProjects}
+                    onExpandProjects={expandProjects}
                 >
-                    <main className="app-scroll scroll-area" key={route.name === "note" ? route.id : route.name}>
+                    <main
+                        className="app-scroll scroll-area"
+                        key={route.name === "note" ? route.id : route.name}
+                        data-route={route.name}
+                    >
                         {route.name === "home" ? <HomePage /> : null}
                         {route.name === "notes" ? <NotesPage key={route.tag ?? "all"} initialTag={route.tag} /> : null}
                         {route.name === "note" ? (
@@ -349,6 +490,7 @@ function Workspace() {
                         {route.name === "tasks" ? <TasksPage /> : null}
                         {route.name === "project" ? <ProjectPage key={route.id} projectId={route.id} /> : null}
                         {route.name === "activity" ? <ActivityPage /> : null}
+                        {route.name === "archive" ? <ArchivePage /> : null}
                         {route.name === "settings" ? <SettingsPage /> : null}
                         {route.name === "support" ? <SupportPage /> : null}
                         {route.name === "whats-new" ? <WhatsNewPage /> : null}
@@ -357,6 +499,7 @@ function Workspace() {
                 </AppShell>
 
                 <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
+                <TourOverlay />
 
                 <ProjectDialog
                     open={Boolean(projectDialog)}
@@ -366,10 +509,10 @@ function Workspace() {
                     onSubmit={async (values) => {
                         if (projectDialog?.mode === "edit" && editingProject) {
                             await store.service.updateProject(editingProject.id, values);
-                            toast.success("Project updated.");
+                            toast.success(t("toast.projectUpdated"));
                         } else {
                             const created = await store.service.createProject(values);
-                            toast.success("Project created.");
+                            toast.success(t("toast.projectCreated"));
                             projectDialog?.onCreated?.(created.id);
                         }
                         setProjectDialog(null);
@@ -392,10 +535,10 @@ function Workspace() {
                     onSubmit={async (values) => {
                         if (taskDialog?.taskId) {
                             await store.service.updateTask(taskDialog.taskId, values);
-                            toast.success("Task updated.");
+                            toast.success(t("toast.taskUpdated"));
                         } else {
                             await store.service.createTask(values);
-                            toast.success("Task created.");
+                            toast.success(t("toast.taskCreated"));
                         }
                         setTaskDialog(null);
                     }}
@@ -411,7 +554,13 @@ function Workspace() {
                 <DeleteConfirm
                     open={Boolean(noteToDelete)}
                     subject="note"
-                    detail={noteToDelete ? `“${noteToDelete.title || "Untitled note"}” will be removed.` : undefined}
+                    detail={
+                        noteToDelete
+                            ? t("delete.noteDetail", {
+                                  title: noteToDelete.title || t("common.untitledNote")
+                              })
+                            : undefined
+                    }
                     onCancel={() => setNoteToDelete(null)}
                     onConfirm={() => void confirmDeleteNote()}
                 />
@@ -419,7 +568,7 @@ function Workspace() {
                 <DeleteConfirm
                     open={Boolean(taskToDelete)}
                     subject="task"
-                    detail={taskToDelete ? `“${taskToDelete.title}” will be removed.` : undefined}
+                    detail={taskToDelete ? t("delete.noteDetail", { title: taskToDelete.title }) : undefined}
                     onCancel={() => setTaskToDelete(null)}
                     onConfirm={() => void confirmDeleteTask()}
                 />
@@ -429,11 +578,66 @@ function Workspace() {
     );
 }
 
+function TourRoot() {
+    const { navigate } = useHashRoute();
+    const store = useStore();
+
+    // ─── OLD CODE (kept for reference) ───
+    // const rememberTour = useCallback(() => {
+    //     store.service.settings.update({ tourCompleted: true }).catch(() => undefined);
+    // }, [store.service]);
+    // ─── NEW: the tour also records `hasSeenTour`, which is what stops it from
+    // auto-starting again on later launches. ───
+    const rememberTour = useCallback(() => {
+        store.service.settings
+            .update({ tourCompleted: true, hasSeenTour: true })
+            .catch(() => undefined);
+    }, [store.service]);
+
+    return (
+        // ─── NEW: every screen reads its copy through the language provider so
+        // switching language re-renders the whole app instantly. ───
+        <I18nProvider language={store.settings.language ?? "en"}>
+            <TourProvider navigate={navigate} onTourFinished={rememberTour}>
+                <Workspace />
+                {/* ─── NEW: launch the welcome tour automatically, but only on a
+                genuine first launch of a brand-new install. ─── */}
+                <AutoStartTour />
+            </TourProvider>
+        </I18nProvider>
+    );
+}
+
+/**
+ * Starts the product tour once, on the very first launch of a fresh install.
+ * `hasSeenTour` is persisted the moment the tour opens, so quitting mid-tour
+ * never brings it back on the next start.
+ */
+function AutoStartTour() {
+    const store = useStore();
+    const tour = useUiTour();
+    const startedRef = useRef(false);
+
+    useEffect(() => {
+        if (startedRef.current) return;
+        // Wait until the stored settings row has actually loaded. Before that
+        // the store falls back to a default profile where hasSeenTour is false,
+        // and starting then would show the tour to every returning user.
+        if (!store.ready || !store.settingsLoaded) return;
+        if (store.settings.hasSeenTour !== false) return;
+        startedRef.current = true;
+        store.service.settings.update({ hasSeenTour: true }).catch(() => undefined);
+        tour.startTour();
+    }, [store.ready, store.settingsLoaded, store.settings.hasSeenTour, store.service, tour]);
+
+    return null;
+}
+
 export function App() {
     return (
         <ToastProvider>
             <DataProvider>
-                <Workspace />
+                <TourRoot />
             </DataProvider>
         </ToastProvider>
     );

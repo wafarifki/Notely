@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import type { ProjectRecord } from "@/db/schema";
+import { useI18n } from "@/i18n";
 import { FolderCard } from "./FolderCard";
 import { ProjectMenu, type ProjectMenuActions } from "./ProjectMenu";
 import { useProjectDrag } from "./useProjectDrag";
@@ -9,6 +10,8 @@ export interface ProjectGridHandlers {
     onEdit(project: ProjectRecord): void;
     onNewNote(project: ProjectRecord): void;
     onDelete(project: ProjectRecord): void;
+    // ─── NEW: archive a project from its card menu. ───
+    onArchive?(project: ProjectRecord): void;
     onMove(project: ProjectRecord, direction: -1 | 1): void;
     onReorder(orderedIds: string[]): void;
 }
@@ -19,7 +22,7 @@ export function ProjectsGrid({
     dragEnabled,
     limit,
     className,
-    emptySlotLabel = "Drop project here"
+    emptySlotLabel
 }: {
     projects: ProjectRecord[];
     handlers: ProjectGridHandlers;
@@ -28,6 +31,8 @@ export function ProjectsGrid({
     className?: string;
     emptySlotLabel?: string;
 }) {
+    const { t } = useI18n();
+    const slotLabel = emptySlotLabel ?? t("project.dropHere");
     const visible = useMemo(() => (limit ? projects.slice(0, limit) : projects), [projects, limit]);
     const orderedIds = useMemo(() => projects.map((project) => project.id), [projects]);
     const [menuProjectId, setMenuProjectId] = useState<string | null>(null);
@@ -48,7 +53,9 @@ export function ProjectsGrid({
               onMove: (direction) => handlers.onMove(menuProject, direction),
               canMoveUp: orderedIds.indexOf(menuProject.id) > 0,
               canMoveDown: orderedIds.indexOf(menuProject.id) < orderedIds.length - 1,
-              onDelete: () => handlers.onDelete(menuProject)
+              onDelete: () => handlers.onDelete(menuProject),
+              // ─── NEW: archive keeps the project and its notes/tasks. ───
+              onArchive: () => handlers.onArchive?.(menuProject)
           }
         : null;
 
@@ -73,7 +80,7 @@ export function ProjectsGrid({
                     <div key={project.id} className="project-grid-cell">
                         {showSlot ? (
                             <div className="drop-slot" aria-hidden="true">
-                                <span>{emptySlotLabel}</span>
+                                <span>{slotLabel}</span>
                             </div>
                         ) : (
                             <FolderCard

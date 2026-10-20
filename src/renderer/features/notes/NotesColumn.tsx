@@ -1,13 +1,17 @@
 import { useCallback, useMemo, useState } from "react";
 import type { NoteRecord, ProjectRecord } from "@/db/schema";
 import { sortNotes } from "@/db/schema";
-import { DeleteConfirm } from "@/components/DeleteConfirm";
+// ─── OLD CODE (kept for reference) ───
+// import { DeleteConfirm } from "@/components/DeleteConfirm";
+// ─── NEW: deletion now runs through the single dialog rendered in App.tsx. ───
 import { NoteCard } from "./NoteCard";
 import { NoteMenu, type NoteMenuActions } from "./NoteMenu";
 
 export interface NotesColumnHandlers {
     onOpen(note: NoteRecord): void;
     onDelete(note: NoteRecord): void;
+    // ─── NEW: archive a note from its card menu. ───
+    onArchive?(note: NoteRecord): void;
     onToggleFlag(note: NoteRecord, flag: "pinned" | "favorite"): void;
     onMove(note: NoteRecord, projectId: string | null): void;
     onSelectTag(tag: string): void;
@@ -47,7 +51,6 @@ export function NotesColumn({
     const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
     const [draggingId, setDraggingId] = useState<string | null>(null);
     const [targetIndex, setTargetIndex] = useState<number | null>(null);
-    const [deleteTarget, setDeleteTarget] = useState<NoteRecord | null>(null);
 
     const menuNote = notes.find((note) => note.id === menuNoteId) ?? null;
     const closeMenu = useCallback(() => {
@@ -62,7 +65,9 @@ export function NotesColumn({
               onToggleFavorite: () => handlers.onToggleFlag(menuNote, "favorite"),
               onMove: (projectId) => handlers.onMove(menuNote, projectId),
               onSelectTag: handlers.onSelectTag,
-              onDelete: () => setDeleteTarget(menuNote)
+              // ─── NEW: ask the app to run the single delete dialog. ───
+              onDelete: () => handlers.onDelete(menuNote),
+              onArchive: () => handlers.onArchive?.(menuNote)
           }
         : null;
 
@@ -141,16 +146,15 @@ export function NotesColumn({
                     onClose={closeMenu}
                 />
             ) : null}
+            {/* ─── OLD CODE (kept for reference) ───
             <DeleteConfirm
                 open={Boolean(deleteTarget)}
                 subject="note"
-                detail={deleteTarget ? `“${deleteTarget.title || "Untitled note"}” will be removed.` : undefined}
-                onCancel={() => setDeleteTarget(null)}
-                onConfirm={() => {
-                    if (deleteTarget) handlers.onDelete(deleteTarget);
-                    setDeleteTarget(null);
-                }}
+                ...
             />
+            ─── NEW: App.tsx already renders one DeleteConfirm for notes. Having a
+            second copy here stacked two dialogs, so confirming the first only
+            revealed the second. Deletion is now delegated upward. ─── */}
         </div>
     );
 }

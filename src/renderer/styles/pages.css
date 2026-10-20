@@ -41,16 +41,16 @@
     min-width: 180px;
     height: 32px;
     padding: 0 10px;
-    background: #fff;
+    background: var(--skin);
     border: 1px solid var(--line);
     border-radius: var(--radius-control);
-    color: #8b8999;
+    color: var(--text-secondary);
     transition: border-color var(--duration-fast) var(--ease-calm), box-shadow var(--duration-fast) var(--ease-calm);
 }
 
 .search-field:focus-within {
-    border-color: #b98fe0;
-    box-shadow: 0 0 0 3px rgba(151, 79, 208, 0.12);
+    border-color: color-mix(in srgb, var(--accent-purple) 60%, var(--line));
+    box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.14);
 }
 
 .search-field input {
@@ -64,7 +64,7 @@
 }
 
 .search-field input::placeholder {
-    color: #a4a2b0;
+    color: var(--text-muted);
 }
 
 .inline-field {
@@ -86,7 +86,7 @@
     display: inline-flex;
     padding: 3px;
     gap: 2px;
-    background: #fff;
+    background: var(--skin);
     border: 1px solid var(--line);
     border-radius: 7px;
 }
@@ -95,17 +95,17 @@
     padding: 4px 11px;
     border-radius: 5px;
     font-size: 12px;
-    color: #5b5870;
+    color: var(--ink-muted);
     transition: background var(--duration-fast) var(--ease-calm), color var(--duration-fast) var(--ease-calm);
 }
 
 .segment:hover {
-    background: #f6f3fb;
+    background: var(--hover-tint);
 }
 
 .segment.is-active {
     background: var(--accent-purple-soft);
-    color: #5b3a78;
+    color: var(--accent-purple-strong);
     font-weight: 500;
 }
 
@@ -121,7 +121,7 @@
 }
 
 .tag-filter.is-active .tag-chip {
-    outline: 1.5px solid #b187dc;
+    outline: 1.5px solid color-mix(in srgb, var(--accent-purple) 60%, var(--line));
     outline-offset: 1px;
 }
 
@@ -138,16 +138,32 @@
     color: var(--text-secondary);
     padding: 4px 7px;
     border-radius: 5px;
-    border: 1px dashed #d2cde0;
+    border: 1px dashed color-mix(in srgb, var(--line) 70%, var(--text-muted));
 }
 
 .tag-clear:hover {
     color: var(--accent-purple);
-    border-color: #bfa6db;
+    border-color: color-mix(in srgb, var(--accent-purple) 45%, var(--line));
 }
 
 .tasks-page-panel {
     padding: 6px 22px;
+}
+
+/* ─── NEW: the project page renders a bare `.task-list` inside a `.panel`.
+   Without any vertical padding the first and last rows hugged the panel's
+   rounded border (a freshly created task looked crammed top and bottom), so the
+   list gets its own breathing room and a soft separator between rows. ─── */
+.task-list-padded {
+    padding: 12px 22px;
+}
+
+.task-list-padded .task-row {
+    padding: 11px 0;
+}
+
+.task-list-padded .task-row + .task-row {
+    border-top: 1px solid var(--line-soft);
 }
 
 .task-list.is-manageable {
@@ -155,9 +171,20 @@
 }
 
 .task-manage-row {
+    /* ─── OLD CODE (kept for reference) ───
     padding: 9px 0;
-    border-bottom: 1px solid #f0f1f6;
+    ─── NEW: this row wrapped a .task-row that already carries its own
+    vertical rhythm. The extra 18px made project-page rows noticeably taller
+    than the same task on the Tasks page. Horizontal padding only, so both
+    views share one spacing scale. ─── */
+    padding: 0 2px;
+    border-bottom: 1px solid var(--line-soft);
     border-radius: 6px;
+}
+
+/* Inner row keeps a single, consistent vertical padding everywhere. */
+.task-manage-row > .task-list > .task-row {
+    padding: 9px 4px;
 }
 
 .task-manage-row:last-child {
@@ -198,12 +225,12 @@
 }
 
 .save-saved {
-    color: #3f8f6b;
+    color: var(--accent-green);
 }
 
 .save-saving,
 .save-dirty {
-    color: #8b7aa0;
+    color: var(--accent-purple);
 }
 
 .save-error {
@@ -232,7 +259,7 @@
 }
 
 .note-editor-title::placeholder {
-    color: #b8b5c4;
+    color: var(--text-muted);
 }
 
 .note-editor-meta {
@@ -254,7 +281,7 @@
     padding: 6px 8px;
     border: 1px solid var(--line);
     border-radius: 7px;
-    background: #fff;
+    background: var(--skin);
 }
 
 .toolbar-button {
@@ -265,12 +292,12 @@
     padding: 0 9px;
     border-radius: 5px;
     font-size: 11.5px;
-    color: #54516a;
+    color: var(--ink-muted);
 }
 
 .toolbar-button:hover {
-    background: #f4f0fa;
-    color: #5b3a78;
+    background: var(--hover-tint);
+    color: var(--accent-purple-strong);
 }
 
 .toolbar-hint {
@@ -283,20 +310,176 @@
     width: 100%;
     min-height: 320px;
     padding: 16px 18px;
-    background: #fff;
+    background: var(--skin);
     border: 1px solid var(--line);
     border-radius: var(--radius-card);
     font-size: 13.5px;
     line-height: 1.7;
-    color: #2c2942;
+    color: var(--input-ink);
     resize: vertical;
     outline: none;
     transition: border-color var(--duration-fast) var(--ease-calm), box-shadow var(--duration-fast) var(--ease-calm);
 }
 
 .note-editor-content:focus {
-    border-color: #b98fe0;
-    box-shadow: 0 0 0 3px rgba(151, 79, 208, 0.1);
+    border-color: color-mix(in srgb, var(--accent-purple) 60%, var(--line));
+    box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.12);
+}
+
+/* ─── NEW: WYSIWYG editor shell. The toolbar sits flush on top of the writing
+   surface so the two read as one control. ─── */
+.rte {
+    display: flex;
+    flex-direction: column;
+}
+
+.rte-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 5px 6px;
+    border: 1px solid var(--line);
+    border-bottom: none;
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    background: var(--surface-sunken);
+    flex-wrap: wrap;
+}
+
+.rte-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 5px;
+    color: var(--ink-muted);
+    transition: background var(--duration-fast) var(--ease-calm), color var(--duration-fast) var(--ease-calm);
+}
+
+.rte-button:hover {
+    background: var(--hover-tint);
+    color: var(--accent-purple-strong);
+}
+
+.rte-button:active {
+    background: var(--accent-purple-soft);
+}
+
+.rte-button:focus-visible {
+    outline: 2px solid var(--accent-purple);
+    outline-offset: 1px;
+}
+
+/* Inline link field — window.prompt() is unavailable inside Electron. */
+.rte-link-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 8px;
+    border: 1px solid var(--line);
+    border-bottom: none;
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    background: var(--surface-sunken);
+}
+
+.rte-link-row .text-input {
+    flex: 1;
+    min-height: 30px;
+}
+
+.rte-divider {
+    width: 1px;
+    height: 18px;
+    margin: 0 3px;
+    background: var(--line);
+}
+
+.rte .note-editor-content {
+    border-radius: 0 0 var(--radius-card) var(--radius-card);
+    overflow-y: auto;
+}
+
+/* Placeholder for a contenteditable element (::placeholder only works on inputs). */
+.rte-content:empty::before {
+    content: attr(data-placeholder);
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+/* Rich text output inside the editor. */
+.rte-content p {
+    margin: 0 0 0.75em;
+}
+
+.rte-content p:last-child {
+    margin-bottom: 0;
+}
+
+.rte-content h1,
+.rte-content h2,
+.rte-content h3 {
+    margin: 1em 0 0.5em;
+    line-height: 1.3;
+}
+
+.rte-content h1 {
+    font-size: 1.5em;
+}
+
+.rte-content h2 {
+    font-size: 1.28em;
+}
+
+.rte-content h3 {
+    font-size: 1.12em;
+}
+
+.rte-content ul,
+.rte-content ol {
+    margin: 0 0 0.75em;
+    padding-left: 1.5em;
+}
+
+.rte-content ul {
+    list-style: disc;
+}
+
+.rte-content ol {
+    list-style: decimal;
+}
+
+.rte-content li {
+    margin: 0.2em 0;
+}
+
+.rte-content blockquote {
+    margin: 0 0 0.75em;
+    padding: 4px 0 4px 12px;
+    border-left: 3px solid var(--accent-purple);
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.rte-content a {
+    color: var(--accent-purple);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.rte-content code {
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--surface-sunken);
+    font-family: "Cascadia Code", "Consolas", monospace;
+    font-size: 0.92em;
+}
+
+.rte-content pre {
+    margin: 0 0 0.75em;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background: var(--surface-sunken);
+    overflow-x: auto;
 }
 
 .note-editor-tags {
@@ -321,7 +504,7 @@
 .tag-input {
     width: 110px;
     height: 24px;
-    border: 1px dashed #d7d2e2;
+    border: 1px dashed color-mix(in srgb, var(--line) 70%, var(--text-muted));
     border-radius: var(--radius-chip);
     padding: 0 8px;
     font-size: 11px;
@@ -331,8 +514,8 @@
 
 .tag-input:focus {
     border-style: solid;
-    border-color: #b98fe0;
-    background: #fff;
+    border-color: color-mix(in srgb, var(--accent-purple) 60%, var(--line));
+    background: var(--skin);
 }
 
 .activity-groups {
@@ -353,6 +536,16 @@
 
 .load-more {
     align-self: flex-start;
+}
+
+/* ─── NEW: the full-history page stretches the activity panel and gives rows a
+   soft separator so long lists stay scannable. ─── */
+.activity-list-page {
+    padding: 8px 24px;
+}
+
+.activity-list-page .activity-row + .activity-row {
+    border-top: 1px solid var(--line-soft);
 }
 
 .settings-page {
@@ -390,21 +583,130 @@
     gap: 8px;
 }
 
+/* ─── NEW: Support / What's new / Privacy now live in Settings as a stacked
+   list of link rows instead of sidebar entries. ─── */
+.settings-link-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0 -8px;
+}
+
+.settings-link-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 9px 8px;
+    border-radius: var(--radius-control);
+    text-align: left;
+    color: var(--text-secondary);
+    transition: background var(--duration-fast) var(--ease-calm), color var(--duration-fast) var(--ease-calm);
+}
+
+.settings-link-row:hover {
+    background: var(--surface-hover);
+    color: var(--text-primary);
+}
+
+.settings-link-row:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 1px;
+}
+
+.settings-link-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    flex: 0 0 auto;
+    border-radius: 8px;
+    background: var(--accent-purple-soft);
+    color: var(--accent-purple-strong);
+}
+
+.settings-link-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.settings-link-title {
+    font-size: 12.8px;
+    font-weight: 500;
+    color: var(--text-strong);
+}
+
+.settings-link-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.settings-link-row > svg {
+    flex: 0 0 auto;
+    color: var(--text-muted);
+}
+
 .avatar-picker {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
 }
 
+/* ─── NEW: uploaded profile photo block. ─── */
+.avatar-upload {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px;
+    border-radius: 9px;
+    border: 1px solid var(--line-soft);
+    background: var(--surface-sunken);
+}
+
+.avatar-upload .profile-avatar,
+.avatar-upload .avatar-initials {
+    border-radius: 50%;
+    flex: 0 0 auto;
+}
+
+.avatar-upload-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.avatar-upload-actions .field-hint {
+    flex-basis: 100%;
+}
+
 .avatar-choice {
+    /* ─── OLD CODE (kept for reference) ───
     padding: 3px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    transition: border-color var(--duration-fast) var(--ease-calm);
+    */
+    /* ─── NEW: the button used to lay out as a block with the ambient
+       line-height (18.85px) and inherited padding, so it rendered as a
+       49.2 x 54.45 rounded rectangle around the circular 40px image.
+       Forcing a zero line-height flex box keeps the wrapper a perfect
+       circle that tracks the avatar size exactly. ─── */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px;
+    line-height: 0;
     border-radius: 50%;
     border: 2px solid transparent;
     transition: border-color var(--duration-fast) var(--ease-calm);
 }
 
 .avatar-choice:hover {
-    border-color: #ded5ea;
+    border-color: color-mix(in srgb, var(--accent-purple) 25%, var(--line));
 }
 
 .avatar-choice.is-selected {
@@ -417,7 +719,7 @@
     justify-content: space-between;
     gap: 20px;
     padding: 10px 0;
-    border-top: 1px solid #f1f2f6;
+    border-top: 1px solid var(--line-soft);
     cursor: pointer;
 }
 
@@ -448,7 +750,7 @@
     height: 20px;
     flex: 0 0 auto;
     border-radius: 999px;
-    background: #d8d6e2;
+    background: color-mix(in srgb, var(--line) 70%, var(--text-muted));
     cursor: pointer;
     transition: background var(--duration-base) var(--ease-calm);
 }
@@ -461,13 +763,13 @@
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background: #fff;
-    box-shadow: 0 1px 3px rgba(30, 20, 50, 0.2);
+    background: var(--skin);
+    box-shadow: 0 1px 3px color-mix(in srgb, var(--ink) 25%, transparent);
     transition: transform var(--duration-base) var(--ease-calm);
 }
 
 .switch:checked {
-    background: #9a53d2;
+    background: var(--button-bg);
 }
 
 .switch:checked::after {
@@ -492,7 +794,7 @@
 .about-list dd {
     margin: 3px 0 0;
     font-size: 12.5px;
-    color: #34314a;
+    color: var(--ink);
 }
 
 .info-page {
@@ -539,13 +841,13 @@
 .info-list li {
     font-size: 12.5px;
     line-height: 1.65;
-    color: #4c4962;
+    color: var(--ink-muted);
 }
 
 .info-card code {
     font-family: "Cascadia Code", "Consolas", monospace;
     font-size: 11.5px;
-    background: #f5f3fa;
+    background: var(--hover-tint);
     padding: 1px 5px;
     border-radius: 4px;
 }
@@ -573,7 +875,7 @@
     justify-content: center;
     align-items: flex-start;
     padding: 14vh 20px 20px;
-    background: rgba(28, 20, 48, 0.32);
+    background: var(--overlay-scrim);
     backdrop-filter: blur(2px);
     animation: fade-in var(--duration-base) var(--ease-calm);
 }
@@ -583,7 +885,7 @@
     display: flex;
     flex-direction: column;
     max-height: 64vh;
-    background: #fff;
+    background: var(--skin);
     border-radius: 10px;
     box-shadow: var(--shadow-modal);
     overflow: hidden;
@@ -596,7 +898,7 @@
     gap: 10px;
     padding: 13px 16px;
     border-bottom: 1px solid var(--line-soft);
-    color: #8b8999;
+    color: var(--text-secondary);
 }
 
 .search-input-row input {
@@ -608,7 +910,7 @@
 }
 
 .search-input-row input::placeholder {
-    color: #a8a6b4;
+    color: var(--text-muted);
 }
 
 .search-results {
@@ -647,7 +949,7 @@
 }
 
 .search-result.is-active {
-    background: #f5f1fa;
+    background: var(--hover-tint-strong);
 }
 
 .search-result-icon {
@@ -656,8 +958,8 @@
     width: 26px;
     height: 26px;
     border-radius: 6px;
-    background: #f5f3f9;
-    color: #6b5c82;
+    background: var(--hover-tint);
+    color: var(--ink-muted);
     flex: 0 0 auto;
 }
 
@@ -701,7 +1003,7 @@ kbd {
     border-bottom-width: 2px;
     border-radius: 4px;
     padding: 0 4px;
-    color: #6d6a80;
+    color: var(--text-secondary);
 }
 
 @media (max-width: 799px) {

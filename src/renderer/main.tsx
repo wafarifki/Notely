@@ -9,6 +9,9 @@ import "./styles/shell.css";
 import "./styles/components.css";
 import "./styles/dashboard.css";
 import "./styles/pages.css";
+import "./styles/motion.css";
+import "./styles/archive.css";
+import "./styles/checklist.css";
 import { App } from "./App";
 
 const container = document.getElementById("root");

@@ -1,5 +1,6 @@
-import { ArrowLeft, Gift, LifeBuoy, Mail, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Gift, LifeBuoy, ShieldCheck } from "lucide-react";
 import { useWorkflows } from "@/feature-hooks";
+import { useI18n } from "@/i18n";
 
 function InfoShell({
     icon: Icon,
@@ -13,12 +14,13 @@ function InfoShell({
     children: React.ReactNode;
 }) {
     const workflows = useWorkflows();
+    const { t } = useI18n();
     return (
         <div className="page info-page">
             <div className="page-topbar">
                 <button type="button" className="back-link" onClick={() => workflows.go({ name: "home" })}>
                     <ArrowLeft size={14} strokeWidth={1.9} aria-hidden="true" />
-                    Home
+                    {t("nav.home")}
                 </button>
             </div>
             <header className="info-header">
@@ -34,40 +36,27 @@ function InfoShell({
 }
 
 export function SupportPage() {
+    const { t } = useI18n();
     return (
-        <InfoShell
-            icon={LifeBuoy}
-            title="Support"
-            intro="Notely is a local-only app, so most issues can be solved right here."
-        >
+        <InfoShell icon={LifeBuoy} title={t("info.supportTitle")} intro={t("info.supportIntro")}>
             <section className="panel info-card">
-                <h2>Where is my data stored?</h2>
-                <p>
-                    Everything lives in this device&apos;s app data folder, inside a private IndexedDB database. When
-                    Notely is installed on Windows the folder is{" "}
-                    <code>%APPDATA%\Notely</code>. Uninstalling the app does not touch it.
-                </p>
+                <h2>{t("info.whereData")}</h2>
+                <p>{t("info.whereDataText")}</p>
             </section>
             <section className="panel info-card">
-                <h2>Back up safely</h2>
-                <p>
-                    Open <strong>Settings → Your data</strong> and choose <strong>Export JSON</strong> before
-                    reinstalling Windows or moving to another computer. Import the same file there to restore
-                    everything, including tags and projects.
-                </p>
+                <h2>{t("info.backupTitle")}</h2>
+                <p>{t("info.backupText")}</p>
             </section>
             <section className="panel info-card">
-                <h2>A change did not save</h2>
-                <p>
-                    If the editor says <em>Unable to save</em>, your browser storage may be full. Export a backup,
-                    restart the app, and import it again. Nothing is ever sent to a server.
-                </p>
+                <h2>{t("info.notSavedTitle")}</h2>
+                <p>{t("info.notSavedText")}</p>
             </section>
             <section className="panel info-card">
-                <h2>Contact</h2>
+                <h2>{t("info.issuesTitle")}</h2>
                 <p className="info-contact">
-                    <Mail size={14} strokeWidth={1.8} aria-hidden="true" />
-                    feedback@notely.local
+                    <a href="https://github.com/wafarifki/Notely/issues" target="_blank" rel="noreferrer noopener">
+                        {t("info.issuesLink")}
+                    </a>
                 </p>
             </section>
         </InfoShell>
@@ -75,16 +64,17 @@ export function SupportPage() {
 }
 
 export function WhatsNewPage() {
+    const { t } = useI18n();
     return (
-        <InfoShell icon={Gift} title="What's new" intro="Recent improvements in this build of Notely.">
+        <InfoShell icon={Gift} title={t("info.whatsNewTitle")} intro={t("info.whatsNewIntro")}>
             <section className="panel info-card">
-                <h2>Version 1.0.0</h2>
+                <h2>{t("info.version", { version: "1.0.0" })}</h2>
                 <ul className="info-list">
-                    <li>Projects, notes and tasks with a shared dashboard overview.</li>
-                    <li>Autosaving note editor with pinning, favorites and tag filters.</li>
-                    <li>Drag-and-drop ordering for project and note cards.</li>
-                    <li>Recent activity for every change, stored locally.</li>
-                    <li>JSON export and validated import, plus a demo workspace reset.</li>
+                    <li>{t("info.whatsNew.item1")}</li>
+                    <li>{t("info.whatsNew.item2")}</li>
+                    <li>{t("info.whatsNew.item3")}</li>
+                    <li>{t("info.whatsNew.item4")}</li>
+                    <li>{t("info.whatsNew.item5")}</li>
                 </ul>
             </section>
         </InfoShell>
@@ -92,32 +82,20 @@ export function WhatsNewPage() {
 }
 
 export function PrivacyPage() {
+    const { t } = useI18n();
     return (
-        <InfoShell
-            icon={ShieldCheck}
-            title="Privacy Policy"
-            intro="Short version: your notes never leave this computer."
-        >
+        <InfoShell icon={ShieldCheck} title={t("info.privacyTitle")} intro={t("info.privacyIntro")}>
             <section className="panel info-card">
-                <h2>No collection</h2>
-                <p>
-                    Notely does not contain analytics, crash reporting, ads or accounts. The app makes no network
-                    requests at runtime and works with the network disconnected.
-                </p>
+                <h2>{t("info.noCollection")}</h2>
+                <p>{t("info.noCollectionText")}</p>
             </section>
             <section className="panel info-card">
-                <h2>Local storage</h2>
-                <p>
-                    Projects, notes, tasks, tags, settings and activity are written to IndexedDB inside the app&apos;s
-                    user data directory. Files you export or import are handled entirely on this device.
-                </p>
+                <h2>{t("info.localStorage")}</h2>
+                <p>{t("info.localStorageText")}</p>
             </section>
             <section className="panel info-card">
-                <h2>Your control</h2>
-                <p>
-                    Delete individual items at any time, or use <strong>Settings → Your data</strong> to export,
-                    reset or clear everything. Clearing removes the records permanently from this device.
-                </p>
+                <h2>{t("info.control")}</h2>
+                <p>{t("info.controlText")}</p>
             </section>
         </InfoShell>
     );

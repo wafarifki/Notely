@@ -1,4 +1,5 @@
 import { createId } from "@/lib/ids";
+import { validationMessage } from "@/lib/validationMessages";
 import type { NotesDatabase } from "./database";
 import { PRIMARY_COLORS, type ProjectColor, type ProjectRecord } from "./schema";
 
@@ -28,13 +29,19 @@ export interface ProjectRelations {
 export function validateProjectInput(input: ProjectInput): ProjectInput {
     const name = input.name.trim();
     if (!name) {
-        throw new ValidationError("name", "Project name is required.");
+        throw new ValidationError("name", validationMessage("validation.projectNameRequired", "Project name is required."));
     }
     if (name.length > 120) {
-        throw new ValidationError("name", "Project name must be 120 characters or fewer.");
+        throw new ValidationError(
+            "name",
+            validationMessage("validation.projectNameTooLong", "Project name must be 120 characters or fewer.")
+        );
     }
     if (!PRIMARY_COLORS.includes(input.color)) {
-        throw new ValidationError("color", "Choose one of the available project colors.");
+        throw new ValidationError(
+            "color",
+            validationMessage("validation.projectColor", "Choose one of the available project colors.")
+        );
     }
     return {
         name,
@@ -82,7 +89,7 @@ export function projectRepository(db: NotesDatabase) {
             const data = validateProjectInput(input);
             const existing = await db.projects.get(id);
             if (!existing) {
-                throw new Error("Project no longer exists.");
+                throw new Error(validationMessage("validation.projectGone", "Project no longer exists."));
             }
             const next: ProjectRecord = {
                 ...existing,
@@ -98,7 +105,7 @@ export function projectRepository(db: NotesDatabase) {
         async setArchived(id: string, archived: boolean): Promise<ProjectRecord> {
             const existing = await db.projects.get(id);
             if (!existing) {
-                throw new Error("Project no longer exists.");
+                throw new Error(validationMessage("validation.projectGone", "Project no longer exists."));
             }
             const next = { ...existing, archived, updatedAt: new Date().toISOString() };
             await db.projects.put(next);

@@ -18,6 +18,9 @@ export interface AppWorkflows {
     createNote(options?: { projectId?: string | null; open?: boolean }): Promise<NoteRecord | null>;
     openNoteDialog(note: NoteRecord): void;
     requestDeleteNote(note: NoteRecord): void;
+    // ─── NEW: notes and tasks can be archived instead of deleted. ───
+    archiveNote(note: NoteRecord, archived: boolean): void;
+    archiveTask(task: TaskRecord, archived: boolean): void;
     toggleNoteFlag(note: NoteRecord, flag: "pinned" | "favorite"): void;
     moveNote(note: NoteRecord, projectId: string | null): void;
     openTaskDialog(task?: TaskRecord | null, defaultProjectId?: string | null): void;

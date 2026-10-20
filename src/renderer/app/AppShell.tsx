@@ -4,6 +4,7 @@ import { Sidebar } from "@/features/sidebar/Sidebar";
 import type { Route } from "./router";
 import { getDesktopBridge, isElectronRuntime } from "@/platform/desktop";
 import type { SettingsRecord } from "@/db/schema";
+import { useI18n } from "@/i18n";
 
 function WindowControls() {
     const [maximized, setMaximized] = useState(false);
@@ -16,20 +17,21 @@ function WindowControls() {
     }, [bridge]);
 
     if (!bridge) return null;
+    const { t } = useI18n();
 
     return (
-        <div className="window-controls" role="toolbar" aria-label="Window controls">
-            <button type="button" onClick={() => bridge.minimize()} aria-label="Minimize">
+        <div className="window-controls" role="toolbar" aria-label={t("a11y.windowControls")}>
+            <button type="button" onClick={() => bridge.minimize()} aria-label={t("a11y.minimize")}>
                 <Minus size={14} strokeWidth={1.8} />
             </button>
             <button
                 type="button"
                 onClick={() => bridge.toggleMaximize().then(setMaximized).catch(() => undefined)}
-                aria-label={maximized ? "Restore down" : "Maximize"}
+                aria-label={maximized ? t("a11y.restore") : t("a11y.maximize")}
             >
                 {maximized ? <Copy size={12} strokeWidth={1.8} /> : <Square size={11} strokeWidth={1.8} />}
             </button>
-            <button type="button" data-action="close" onClick={() => bridge.close()} aria-label="Close">
+            <button type="button" data-action="close" onClick={() => bridge.close()} aria-label={t("a11y.closeWindow")}>
                 <X size={14} strokeWidth={1.8} />
             </button>
         </div>
@@ -44,6 +46,7 @@ export function AppShell({
     onNewProject,
     onToggleSidebar,
     onToggleProjects,
+    onExpandProjects,
     children
 }: {
     route: Route;
@@ -53,9 +56,11 @@ export function AppShell({
     onNewProject: () => void;
     onToggleSidebar: () => void;
     onToggleProjects: () => void;
+    onExpandProjects: () => void;
     children: ReactNode;
 }) {
     const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
+    const { t } = useI18n();
 
     useEffect(() => {
         const handleResize = () => setViewportWidth(window.innerWidth);
@@ -77,7 +82,16 @@ export function AppShell({
     }, []);
 
     return (
-        <div className={electron ? "electron-runtime app-canvas" : "app-canvas"}>
+        <div
+            className={[
+                electron ? "electron-runtime" : "",
+                "app-canvas",
+                settings.animatedBackground ? "has-ambient" : ""
+            ]
+                .filter(Boolean)
+                .join(" ")}
+            data-theme-applied={settings.theme}
+        >
             {electron ? <div className="drag-strip" aria-hidden="true" /> : null}
             <WindowControls />
             <div className="app-panel" data-sidebar={collapsed ? "collapsed" : "open"}>
@@ -85,11 +99,11 @@ export function AppShell({
                     <button
                         type="button"
                         className="app-scrim"
-                        aria-label="Close navigation"
+                        aria-label={t("a11y.closeNavigation")}
                         onClick={onToggleSidebar}
                     />
                 ) : null}
-                <aside className="app-sidebar" aria-label="Primary navigation">
+                <aside className="app-sidebar" aria-label={t("a11y.primaryNavigation")}>
                     <Sidebar
                         route={route}
                         settings={settings}
@@ -97,13 +111,14 @@ export function AppShell({
                         onOpenSearch={onOpenSearch}
                         onNewProject={onNewProject}
                         onToggleProjects={onToggleProjects}
+                        onExpandProjects={onExpandProjects}
                     />
                     <button
                         type="button"
                         className="sidebar-collapse-handle"
                         onClick={onToggleSidebar}
-                        aria-label={collapsed ? "Show sidebar" : "Hide sidebar"}
-                        title={collapsed ? "Show sidebar" : "Hide sidebar"}
+                        aria-label={collapsed ? t("sidebar.showSidebar") : t("sidebar.hideSidebar")}
+                        title={collapsed ? t("sidebar.showSidebar") : t("sidebar.hideSidebar")}
                     >
                         {collapsed ? (
                             <ChevronsRight size={16} strokeWidth={1.9} />
@@ -118,7 +133,7 @@ export function AppShell({
                             type="button"
                             className="mobile-menu-button"
                             onClick={onToggleSidebar}
-                            aria-label="Open navigation"
+                            aria-label={t("sidebar.showNav")}
                         >
                             <Menu size={18} strokeWidth={1.8} />
                         </button>

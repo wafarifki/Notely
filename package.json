@@ -2,15 +2,15 @@
     "name": "notely",
     "productName": "Notely",
     "version": "1.0.0",
-    "description": "Notely — a calm, local-first desktop workspace for projects, notes and tasks.",
+    "description": "Notely is local-first desktop app for projects, notes and tasks. Offline, private, built with Electron + React + TypeScript.",
     "author": {
-        "name": "Notely",
-        "email": "hello@notely.app"
+        "name": "Notely"
     },
     "license": "MIT",
     "private": true,
     "main": "dist-electron/main.js",
     "scripts": {
+        "predev": "node scripts/reclaim.mjs",
         "dev": "node scripts/dev.mjs",
         "dev:web": "vite",
         "dev:electron": "node scripts/build.mjs && electron .",
@@ -22,9 +22,15 @@
         "screenshots": "node scripts/screenshots.mjs",
         "assets": "node scripts/generate-assets.mjs",
         "verify:exe": "node scripts/verify-exe.mjs",
+        "predev:web": "node scripts/reclaim.mjs",
+        "postdev": "node scripts/reclaim.mjs",
+        "postdev:web": "node scripts/reclaim.mjs",
+        "postdev:electron": "node scripts/reclaim.mjs",
         "dist:win": "npm run build && node scripts/package-win.mjs nsis",
         "dist:portable": "npm run build && node scripts/package-win.mjs portable",
         "dist:all": "npm run build && node scripts/package-win.mjs nsis portable",
+        "clean": "node scripts/clean.mjs",
+        "reinstall": "node scripts/clean.mjs && npm ci",
         "stage:app": "node scripts/build.mjs && node scripts/stage-app.mjs"
     },
     "dependencies": {

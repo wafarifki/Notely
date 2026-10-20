@@ -1,9 +1,16 @@
 import { createId } from "@/lib/ids";
+import { validationMessage } from "@/lib/validationMessages";
 import type { NotesDatabase } from "./database";
 import { ValidationError } from "./projectRepository";
-import type { TaskRecord } from "./schema";
+import type { TaskChecklistItem, TaskRecord } from "./schema";
 
 export type TaskPriority = TaskRecord["priority"];
+
+export interface TaskChecklistInput {
+    id?: string;
+    text: string;
+    done: boolean;
+}
 
 export interface TaskInput {
     title: string;
@@ -11,30 +18,61 @@ export interface TaskInput {
     projectId: string | null;
     priority: TaskPriority;
     dueAt: string | null;
+    // ─── NEW: optional checklist sub-steps. ───
+    checklist?: TaskChecklistInput[];
+}
+
+const MAX_CHECKLIST_ITEMS = 50;
+
+// ─── NEW: trim, drop blanks and cap the list so a task cannot grow unbounded. ───
+export function normalizeChecklist(items: TaskChecklistInput[] | undefined): TaskChecklistItem[] {
+    if (!items) return [];
+    return items
+        .map((item) => ({
+            id: item.id ?? createId("check"),
+            text: item.text.trim().slice(0, 200),
+            done: Boolean(item.done)
+        }))
+        .filter((item) => item.text.length > 0)
+        .slice(0, MAX_CHECKLIST_ITEMS);
 }
 
 export const TASK_PRIORITIES: TaskPriority[] = ["low", "medium", "high"];
 
-export function validateTaskInput(input: TaskInput): TaskInput {
+// ─── NEW: the validated shape stores a fully-resolved checklist. ───
+export interface ValidatedTaskInput {
+    title: string;
+    notes: string;
+    projectId: string | null;
+    priority: TaskPriority;
+    dueAt: string | null;
+    checklist: TaskChecklistItem[];
+}
+
+export function validateTaskInput(input: TaskInput): ValidatedTaskInput {
     const title = input.title.trim();
     if (!title) {
-        throw new ValidationError("title", "Task title is required.");
+        throw new ValidationError("title", validationMessage("validation.taskTitleRequired", "Task title is required."));
     }
     if (title.length > 160) {
-        throw new ValidationError("title", "Task title must be 160 characters or fewer.");
+        throw new ValidationError(
+            "title",
+            validationMessage("validation.taskTitleTooLong", "Task title must be 160 characters or fewer.")
+        );
     }
     if (!TASK_PRIORITIES.includes(input.priority)) {
-        throw new ValidationError("priority", "Choose a valid priority.");
+        throw new ValidationError("priority", validationMessage("validation.taskPriority", "Choose a valid priority."));
     }
     if (input.dueAt && Number.isNaN(new Date(input.dueAt).getTime())) {
-        throw new ValidationError("dueAt", "Due date is not a valid date.");
+        throw new ValidationError("dueAt", validationMessage("validation.taskDue", "Due date is not a valid date."));
     }
     return {
         title,
         notes: input.notes.slice(0, 2000),
         projectId: input.projectId,
         priority: input.priority,
-        dueAt: input.dueAt
+        dueAt: input.dueAt,
+        checklist: normalizeChecklist(input.checklist)
     };
 }
 
@@ -63,6 +101,8 @@ export function taskRepository(db: NotesDatabase) {
                 projectId: data.projectId,
                 completed: false,
                 favorite: false,
+                archived: false,
+                checklist: data.checklist,
                 priority: data.priority,
                 dueAt: data.dueAt,
                 order: await nextOrder(),
@@ -78,7 +118,7 @@ export function taskRepository(db: NotesDatabase) {
             const data = validateTaskInput(input);
             const existing = await db.tasks.get(id);
             if (!existing) {
-                throw new Error("Task no longer exists.");
+                throw new Error(validationMessage("validation.taskGone", "Task no longer exists."));
             }
             const next: TaskRecord = {
                 ...existing,
@@ -87,6 +127,7 @@ export function taskRepository(db: NotesDatabase) {
                 projectId: data.projectId,
                 priority: data.priority,
                 dueAt: data.dueAt,
+                checklist: data.checklist,
                 updatedAt: new Date().toISOString()
             };
             await db.tasks.put(next);
@@ -96,7 +137,7 @@ export function taskRepository(db: NotesDatabase) {
         async setCompleted(id: string, completed: boolean): Promise<TaskRecord> {
             const existing = await db.tasks.get(id);
             if (!existing) {
-                throw new Error("Task no longer exists.");
+                throw new Error(validationMessage("validation.taskGone", "Task no longer exists."));
             }
             const now = new Date().toISOString();
             const next: TaskRecord = {
@@ -112,9 +153,20 @@ export function taskRepository(db: NotesDatabase) {
         async setFavorite(id: string, favorite: boolean): Promise<TaskRecord> {
             const existing = await db.tasks.get(id);
             if (!existing) {
-                throw new Error("Task no longer exists.");
+                throw new Error(validationMessage("validation.taskGone", "Task no longer exists."));
             }
             const next: TaskRecord = { ...existing, favorite, updatedAt: new Date().toISOString() };
+            await db.tasks.put(next);
+            return next;
+        },
+
+        // ─── NEW: archive / restore a task without deleting it. ───
+        async setArchived(id: string, archived: boolean): Promise<TaskRecord> {
+            const existing = await db.tasks.get(id);
+            if (!existing) {
+                throw new Error(validationMessage("validation.taskGone", "Task no longer exists."));
+            }
+            const next: TaskRecord = { ...existing, archived, updatedAt: new Date().toISOString() };
             await db.tasks.put(next);
             return next;
         },

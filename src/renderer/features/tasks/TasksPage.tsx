@@ -6,11 +6,13 @@ import { EmptyState } from "@/components/EmptyState";
 import { sortProjects, sortTasks } from "@/db/schema";
 import { isOverdue } from "@/lib/dates";
 import { useWorkflows } from "@/feature-hooks";
+import { useI18n } from "@/i18n";
 import { TaskList } from "./TaskList";
 
 export function TasksPage() {
     const { tasks, projects, ready } = useStore();
     const workflows = useWorkflows();
+    const { t } = useI18n();
     const [filter, setFilter] = useState<TaskFilter>("all");
     const [projectFilter, setProjectFilter] = useState("all");
     const [query, setQuery] = useState("");
@@ -19,9 +21,11 @@ export function TasksPage() {
 
     const projectNames = useMemo(() => new Map(projects.map((project) => [project.id, project.name])), [projects]);
     const activeProjects = useMemo(() => sortProjects(projects.filter((project) => !project.archived)), [projects]);
+    // ─── NEW: archived tasks live on the Archive page. ───
+    const liveTasks = useMemo(() => tasks.filter((task) => !task.archived), [tasks]);
 
     const visible = useMemo(() => {
-        let rows = filterTasks(tasks, filter);
+        let rows = filterTasks(liveTasks, filter);
         if (projectFilter === "none") rows = rows.filter((task) => task.projectId === null);
         else if (projectFilter !== "all") rows = rows.filter((task) => task.projectId === projectFilter);
         if (query.trim()) {
@@ -29,16 +33,16 @@ export function TasksPage() {
             rows = rows.filter((task) => task.title.toLowerCase().includes(term) || task.notes.toLowerCase().includes(term));
         }
         return sortTasks(rows);
-    }, [tasks, filter, projectFilter, query]);
+    }, [liveTasks, filter, projectFilter, query]);
 
     const counts = useMemo(
         () => ({
-            total: tasks.length,
-            active: tasks.filter((task) => !task.completed).length,
-            overdue: tasks.filter((task) => isOverdue(task.dueAt, task.completed)).length,
-            favorite: tasks.filter((task) => task.favorite).length
+            total: liveTasks.length,
+            active: liveTasks.filter((task) => !task.completed).length,
+            overdue: liveTasks.filter((task) => isOverdue(task.dueAt, task.completed)).length,
+            favorite: liveTasks.filter((task) => task.favorite).length
         }),
-        [tasks]
+        [liveTasks]
     );
 
     function finishDrag(commit: boolean) {
@@ -64,9 +68,13 @@ export function TasksPage() {
         <div className="page tasks-page">
             <header className="page-header">
                 <div>
-                    <h1 className="page-title">Tasks</h1>
+                    <h1 className="page-title">{t("tasks.title")}</h1>
                     <p className="page-subtitle">
-                        {counts.active} active · {counts.overdue} overdue · {counts.favorite} favorite
+                        {t("tasks.summary", {
+                            active: counts.active,
+                            overdue: counts.overdue,
+                            favorite: counts.favorite
+                        })}
                     </p>
                 </div>
                 <div className="page-header-actions">
@@ -76,13 +84,13 @@ export function TasksPage() {
                         onClick={() => workflows.openTaskDialog(null)}
                     >
                         <Plus size={14} strokeWidth={2} aria-hidden="true" />
-                        New task
+                        {t("common.newTask")}
                     </button>
                 </div>
             </header>
 
             <div className="filter-bar">
-                <div className="segmented" role="tablist" aria-label="Filter tasks">
+                <div className="segmented" role="tablist" aria-label={t("tasks.filterTasks")} data-tour="task-filters">
                     {TASK_FILTERS.map((option) => (
                         <button
                             key={option.id}
@@ -92,7 +100,7 @@ export function TasksPage() {
                             className={`segment${filter === option.id ? " is-active" : ""}`}
                             onClick={() => setFilter(option.id)}
                         >
-                            {option.label}
+                            {t(option.labelKey)}
                         </button>
                     ))}
                 </div>
@@ -101,22 +109,22 @@ export function TasksPage() {
                     <input
                         type="search"
                         value={query}
-                        placeholder="Search tasks"
-                        aria-label="Search tasks"
+                        placeholder={t("tasks.searchPlaceholder")}
+                        aria-label={t("tasks.search")}
                         onChange={(event) => setQuery(event.target.value)}
                     />
                 </label>
                 <label className="inline-field">
                     <span>
-                        <Filter size={12} strokeWidth={1.9} aria-hidden="true" /> Project
+                        <Filter size={12} strokeWidth={1.9} aria-hidden="true" /> {t("common.project")}
                     </span>
                     <select
                         className="text-input select-input select-inline"
                         value={projectFilter}
                         onChange={(event) => setProjectFilter(event.target.value)}
                     >
-                        <option value="all">All projects</option>
-                        <option value="none">Unassigned</option>
+                        <option value="all">{t("notes.allProjects")}</option>
+                        <option value="none">{t("common.unassigned")}</option>
                         {activeProjects.map((project) => (
                             <option key={project.id} value={project.id}>
                                 {project.name}
@@ -130,11 +138,11 @@ export function TasksPage() {
                 {visible.length === 0 ? (
                     <EmptyState
                         icon={CheckCircle2}
-                        title={tasks.length === 0 ? "No tasks yet" : "No tasks match these filters"}
+                        title={tasks.length === 0 ? t("tasks.emptyTitle") : t("tasks.emptyNoMatchTitle")}
                         description={
                             tasks.length === 0
-                                ? "Plan your next step with a task and a due date."
-                                : "Try another filter or clear the search."
+                                ? t("tasks.emptyText")
+                                : t("tasks.emptyNoMatchText")
                         }
                         action={
                             tasks.length === 0 ? (
@@ -143,7 +151,7 @@ export function TasksPage() {
                                     className="button button-primary button-small"
                                     onClick={() => workflows.openTaskDialog(null)}
                                 >
-                                    New task
+                                    {t("common.newTask")}
                                 </button>
                             ) : (
                                 <button
@@ -155,7 +163,7 @@ export function TasksPage() {
                                         setQuery("");
                                     }}
                                 >
-                                    Clear filters
+                                    {t("common.clearFilters")}
                                 </button>
                             )
                         }
@@ -187,12 +195,14 @@ export function TasksPage() {
                                 <TaskList
                                     tasks={[task]}
                                     showProjectName
+                                    showMenu
                                     projectNames={projectNames}
                                     handlers={{
                                         onToggle: workflows.toggleTask,
                                         onToggleFavorite: workflows.toggleTaskFavorite,
                                         onOpen: (row) => workflows.openTaskDialog(row),
-                                        onOpenMenu: (row) => workflows.openTaskDialog(row)
+                                        onArchive: (row) => workflows.archiveTask(row, true),
+                                        onDelete: (row) => workflows.requestDeleteTask(row)
                                     }}
                                 />
                             </li>
@@ -201,9 +211,7 @@ export function TasksPage() {
                 )}
             </div>
             <p className="list-hint">
-                {reorderEnabled
-                    ? "Drag tasks to reorder them. Order is saved locally."
-                    : "Clear filters to drag and reorder tasks."}
+                {reorderEnabled ? t("common.dragToReorder") : t("common.clearFiltersToDrag")}
             </p>
         </div>
     );

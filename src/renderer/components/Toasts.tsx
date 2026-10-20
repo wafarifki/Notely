@@ -8,6 +8,7 @@ import {
     type ReactNode
 } from "react";
 import { AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
+import { useI18n } from "@/i18n";
 
 type ToastTone = "success" | "error" | "info";
 
@@ -51,6 +52,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         }),
         [push]
     );
+    const { t } = useI18n();
 
     return (
         <ToastContext.Provider value={api}>
@@ -72,7 +74,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                             type="button"
                             className="toast-close"
                             onClick={() => dismiss(toast.id)}
-                            aria-label="Dismiss notification"
+                            aria-label={t("toast.dismiss")}
                         >
                             <X size={13} strokeWidth={2} />
                         </button>

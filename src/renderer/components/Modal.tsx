@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { useI18n } from "@/i18n";
 
 interface ModalProps {
     open: boolean;
@@ -28,6 +29,7 @@ export function Modal({
 }: ModalProps) {
     const dialogRef = useRef<HTMLDivElement>(null);
     const restoreFocusRef = useRef<HTMLElement | null>(null);
+    const { t } = useI18n();
 
     useEffect(() => {
         if (!open) return;
@@ -98,7 +100,7 @@ export function Modal({
                             </p>
                         ) : null}
                     </div>
-                    <button type="button" className="icon-button" onClick={onClose} aria-label="Close dialog">
+                    <button type="button" className="icon-button" onClick={onClose} aria-label={t("a11y.closeDialog")}>
                         <X size={16} strokeWidth={1.8} />
                     </button>
                 </div>

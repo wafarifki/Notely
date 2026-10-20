@@ -1,5 +1,15 @@
 import type { NotesDatabase } from "./database";
-import { PRIMARY_COLORS, type ProjectColor, type SettingsRecord } from "./schema";
+import {
+    PRIMARY_COLORS,
+    type AccentName,
+    type ProjectColor,
+    type SettingsRecord,
+    type TaskChecklistItem,
+    type ThemeMode
+} from "./schema";
+import { ACCENT_NAMES, isHexColor } from "@/theme/palette";
+import { createId } from "@/lib/ids";
+import { createDefaultProfile } from "./seed";
 
 export const EXPORT_FORMAT = "notes-desktop-backup";
 export const EXPORT_VERSION = 1;
@@ -23,6 +33,8 @@ interface BackupNote {
     tags: string[];
     pinned: boolean;
     favorite: boolean;
+    // ─── NEW: backups keep the archived flag so restores are faithful. ───
+    archived: boolean;
     order: number;
     createdAt: string;
     updatedAt: string;
@@ -35,6 +47,10 @@ interface BackupTask {
     projectId: string | null;
     completed: boolean;
     favorite: boolean;
+    // ─── NEW: backups keep the archived flag so restores are faithful. ───
+    archived: boolean;
+    // ─── NEW: optional checklist sub-steps. ───
+    checklist: TaskChecklistItem[];
     priority: "low" | "medium" | "high";
     dueAt: string | null;
     order: number;
@@ -124,6 +140,29 @@ function asProjectColor(value: unknown, path: string): ProjectColor {
     return value as ProjectColor;
 }
 
+function parseTheme(value: unknown): ThemeMode {
+    return value === "light" || value === "dark" || value === "auto" ? value : "auto";
+}
+
+function parseAccent(value: unknown): AccentName {
+    return typeof value === "string" && ACCENT_NAMES.includes(value as AccentName)
+        ? (value as AccentName)
+        : "purple";
+}
+
+function parseHex(value: unknown, path: string): string | null {
+    if (value === undefined || value === null) return null;
+    if (typeof value !== "string" || !isHexColor(value)) fail(path, "expected a #rrggbb color");
+    return value;
+}
+
+// ─── NEW: uploaded photos are optional; older backups simply omit them. ───
+function parseAvatarImage(value: unknown, path: string): string | null {
+    if (value === undefined || value === null) return null;
+    if (typeof value !== "string" || !/^data:image\//.test(value)) fail(path, "expected an image data URL");
+    return value;
+}
+
 export function parseBackup(input: unknown): BackupFile {
     const root = asRecord(input, "file");
     if (root.format !== EXPORT_FORMAT) {
@@ -139,14 +178,25 @@ export function parseBackup(input: unknown): BackupFile {
         displayName: asString(settingsRaw.displayName, "settings.displayName"),
         email: asString(settingsRaw.email, "settings.email"),
         avatarId: asString(settingsRaw.avatarId, "settings.avatarId"),
+        // ─── NEW: keep the uploaded photo and language across backup round-trips. ───
+        avatarImage: parseAvatarImage(settingsRaw.avatarImage, "settings.avatarImage"),
+        avatarImageUpdatedAt:
+            typeof settingsRaw.avatarImageUpdatedAt === "string" ? settingsRaw.avatarImageUpdatedAt : null,
+        language: settingsRaw.language === "id" ? "id" : "en",
         projectsExpanded: asBoolean(settingsRaw.projectsExpanded, "settings.projectsExpanded"),
         sidebarCollapsed: asBoolean(settingsRaw.sidebarCollapsed, "settings.sidebarCollapsed"),
-        demoDragState: asBoolean(settingsRaw.demoDragState, "settings.demoDragState"),
         completedTasksVisible: asBoolean(
             settingsRaw.completedTasksVisible ?? true,
             "settings.completedTasksVisible"
         ),
-        showWeekends: asBoolean(settingsRaw.showWeekends ?? true, "settings.showWeekends")
+        showWeekends: asBoolean(settingsRaw.showWeekends ?? true, "settings.showWeekends"),
+        theme: parseTheme(settingsRaw.theme),
+        accent: parseAccent(settingsRaw.accent),
+        customAccent: parseHex(settingsRaw.customAccent, "settings.customAccent"),
+        customCanvas: parseHex(settingsRaw.customCanvas, "settings.customCanvas"),
+        tourCompleted: asBoolean(settingsRaw.tourCompleted ?? true, "settings.tourCompleted"),
+        hasSeenTour: asBoolean(settingsRaw.hasSeenTour ?? true, "settings.hasSeenTour"),
+        animatedBackground: asBoolean(settingsRaw.animatedBackground ?? true, "settings.animatedBackground")
     };
 
     const projectIds = new Set<string>();
@@ -190,6 +240,7 @@ export function parseBackup(input: unknown): BackupFile {
             tags: tags.slice(0, 12),
             pinned: asBoolean(item.pinned ?? false, `${path}.pinned`),
             favorite: asBoolean(item.favorite ?? false, `${path}.favorite`),
+            archived: asBoolean(item.archived ?? false, `${path}.archived`),
             order: asInteger(item.order, `${path}.order`),
             createdAt: asDate(item.createdAt, `${path}.createdAt`),
             updatedAt: asDate(item.updatedAt, `${path}.updatedAt`)
@@ -216,6 +267,21 @@ export function parseBackup(input: unknown): BackupFile {
             projectId,
             completed: asBoolean(item.completed, `${path}.completed`),
             favorite: asBoolean(item.favorite ?? false, `${path}.favorite`),
+            archived: asBoolean(item.archived ?? false, `${path}.archived`),
+            // ─── NEW: older backups have no checklist; treat them as empty. ───
+            checklist: Array.isArray(item.checklist)
+                ? (item.checklist as unknown[]).flatMap((raw, i): TaskChecklistItem[] => {
+                      const entry = asRecord(raw, `${path}.checklist[${i}]`);
+                      const text = asString(entry.text, `${path}.checklist[${i}].text`);
+                      return [
+                          {
+                              id: typeof entry.id === "string" ? entry.id : createId("check"),
+                              text: text.slice(0, 200),
+                              done: Boolean(entry.done)
+                          }
+                      ];
+                  })
+                : [],
             priority: priority as BackupTask["priority"],
             dueAt: asNullableDate(item.dueAt ?? null, `${path}.dueAt`),
             order: asInteger(item.order, `${path}.order`),
@@ -239,18 +305,7 @@ export async function exportDatabase(db: NotesDatabase): Promise<BackupFile> {
         format: EXPORT_FORMAT,
         version: EXPORT_VERSION,
         exportedAt: new Date().toISOString(),
-        settings:
-            settings ?? {
-                id: "app",
-                displayName: "Nick Woods",
-                email: "nick.woods@gmail.com",
-                avatarId: "nick-woods",
-                projectsExpanded: true,
-                sidebarCollapsed: false,
-                demoDragState: true,
-                completedTasksVisible: true,
-                showWeekends: true
-            },
+        settings: settings ?? createDefaultProfile(),
         projects: projects.map((project) => ({ ...project })),
         notes: notes.map((note) => ({ ...note })),
         tasks: tasks.map((task) => ({ ...task }))

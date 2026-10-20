@@ -14,21 +14,39 @@ release/
 coverage/
 _screenshots/
 _analysis/
+tests/
+
+# Playwright browser binaries and reports
+.playwright/
+test-results/
+playwright-report/
+blob-report/
+
+# Ad-hoc screenshots captured while debugging (not the curated docs/screenshots/)
+/screenshot.png
+/screenshot-*.png
 
 # Logs
 *.log
 npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
 
 # Environment files
 .env
 .env.*
 !.env.example
 
+# TypeScript incremental build info
+*.tsbuildinfo
+.tsbuildinfo
+
 # Editors and OS
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
 .idea/
+*.swp
 .DS_Store
 Thumbs.db
 desktop.ini

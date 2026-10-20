@@ -1,4 +1,6 @@
 import { ConfirmDialog } from "./ConfirmDialog";
+import { useI18n } from "@/i18n";
+import type { TranslationKey } from "@/i18n/translations";
 
 export function DeleteConfirm({
     open,
@@ -8,21 +10,26 @@ export function DeleteConfirm({
     onConfirm
 }: {
     open: boolean;
-    subject: string;
+    subject: "note" | "task" | "project";
     detail?: string;
     onCancel: () => void;
     onConfirm: () => void;
 }) {
+    const { t } = useI18n();
+    // ─── NEW: the subject is a key now, so the sentence works in both languages. ───
+    const subjectKey = `subject.${subject}` as TranslationKey;
+    const subjectLabel = t(subjectKey);
+
     return (
         <ConfirmDialog
             open={open}
-            title={`Delete ${subject}?`}
-            confirmLabel="Delete"
+            title={t("delete.title", { subject: subjectLabel })}
+            confirmLabel={t("common.delete")}
             tone="danger"
             onCancel={onCancel}
             onConfirm={onConfirm}
         >
-            <p>This will permanently remove the {subject} from your local workspace. This cannot be undone.</p>
+            <p>{t("delete.body", { subject: subjectLabel })}</p>
             {detail ? <p className="confirm-muted">{detail}</p> : null}
         </ConfirmDialog>
     );

@@ -1,22 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-    ArrowLeft,
-    Check,
-    List as ListIcon,
-    ListOrdered,
-    MoreHorizontal,
-    Pin,
-    Save,
-    Star,
-    Trash2
-} from "lucide-react";
+// ─── OLD CODE (kept for reference) ───
+// import { ArrowLeft, Check, List as ListIcon, ListOrdered, MoreHorizontal, Pin, Save, Star, Trash2 } from "lucide-react";
+// ─── NEW: ListIcon/ListOrdered moved into RichTextEditor's toolbar. ───
+import { ArrowLeft, Check, MoreHorizontal, Pin, Save, Star, Trash2 } from "lucide-react";
 import { describeError, useStore } from "@/app/store";
 import { Popover, PopoverDivider, PopoverItem } from "@/components/Popover";
 import { EmptyState } from "@/components/EmptyState";
 import type { NoteRecord } from "@/db/schema";
 import { formatFullDate } from "@/lib/dates";
+import { sanitizeNoteHtml } from "@/lib/noteContent";
 import { useWorkflows } from "@/feature-hooks";
+import { useI18n } from "@/i18n";
 import { TagChip } from "./TagChip";
+import { RichTextEditor } from "./RichTextEditor";
 
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "error";
 
@@ -55,6 +51,7 @@ function draftsEqual(a: Draft, b: Draft): boolean {
 export function NoteEditorPage({ noteId, focusTitle }: { noteId: string; focusTitle?: boolean }) {
     const { notes, projects, ready, service } = useStore();
     const workflows = useWorkflows();
+    const { t } = useI18n();
     const note = notes.find((row) => row.id === noteId);
 
     if (!ready) {
@@ -67,15 +64,15 @@ export function NoteEditorPage({ noteId, focusTitle }: { noteId: string; focusTi
                 <div className="panel">
                     <EmptyState
                         icon={Save}
-                        title="Note not found"
-                        description="This note was deleted or no longer exists."
+                        title={t("note.notFoundTitle")}
+                        description={t("note.notFoundText")}
                         action={
                             <button
                                 type="button"
                                 className="button button-primary button-small"
                                 onClick={() => workflows.go({ name: "notes" })}
                             >
-                                Back to notes
+                                {t("note.backToNotes")}
                             </button>
                         }
                     />
@@ -110,6 +107,7 @@ function NoteEditor({
     focusTitle?: boolean;
 }) {
     const [draft, setDraft] = useState<Draft>(() => draftFromNote(note));
+    const { t, language } = useI18n();
     const [saveState, setSaveState] = useState<SaveState>("idle");
     const [saveError, setSaveError] = useState<string | null>(null);
     const [tagInput, setTagInput] = useState("");
@@ -135,7 +133,8 @@ function NoteEditor({
             try {
                 await service.updateNote(note.id, {
                     title: values.title,
-                    content: values.content,
+                    // ─── NEW: never persist markup we did not allowlist. ───
+                    content: sanitizeNoteHtml(values.content),
                     projectId: values.projectId,
                     tags: values.tags
                 });
@@ -241,30 +240,33 @@ function NoteEditor({
         });
     }
 
-    function applyFormat(kind: "bullet" | "numbered") {
-        const textarea = contentRef.current;
-        if (!textarea) return;
-        const { selectionStart, selectionEnd, value } = textarea;
-        const lineStart = value.lastIndexOf("\n", selectionStart - 1) + 1;
-        const selected = value.slice(lineStart, selectionEnd);
-        const prefix = kind === "bullet" ? "• " : "1. ";
-        const lines = selected.split("\n");
-        const numbered = lines.map((line, index) => `${kind === "numbered" ? `${index + 1}. ` : prefix}${line}`);
-        const replacement = numbered.join("\n");
-        const nextValue = value.slice(0, lineStart) + replacement + value.slice(selectionEnd);
-        updateDraft({ content: nextValue });
-        requestAnimationFrame(() => {
-            textarea.focus();
-            textarea.setSelectionRange(lineStart + replacement.length, lineStart + replacement.length);
-        });
-    }
+    // ─── OLD CODE (kept for reference) ───
+    // Superseded by the WYSIWYG toolbar; the function only manipulated a plain
+    // textarea, which no longer exists in this view.
+    // function applyFormat(kind: "bullet" | "numbered") {
+    //     const textarea = contentRef.current;
+    //     if (!textarea) return;
+    //     const { selectionStart, selectionEnd, value } = textarea;
+    //     const lineStart = value.lastIndexOf("\n", selectionStart - 1) + 1;
+    //     const selected = value.slice(lineStart, selectionEnd);
+    //     const prefix = kind === "bullet" ? "• " : "1. ";
+    //     const lines = selected.split("\n");
+    //     const numbered = lines.map((line, index) => `${kind === "numbered" ? `${index + 1}. ` : prefix}${line}`);
+    //     const replacement = numbered.join("\n");
+    //     const nextValue = value.slice(0, lineStart) + replacement + value.slice(selectionEnd);
+    //     updateDraft({ content: nextValue });
+    //     requestAnimationFrame(() => {
+    //         textarea.focus();
+    //         textarea.setSelectionRange(lineStart + replacement.length, lineStart + replacement.length);
+    //     });
+    // }
 
     const saveLabel: Record<SaveState, string> = {
-        idle: `Edited ${formatFullDate(note.updatedAt)}`,
-        dirty: "Unsaved changes",
-        saving: "Saving…",
-        saved: "Saved",
-        error: "Unable to save"
+        idle: t("note.editedOn", { date: formatFullDate(note.updatedAt, language) }),
+        dirty: t("note.unsaved"),
+        saving: t("note.saving"),
+        saved: t("note.saved"),
+        error: t("note.unableToSave")
     };
 
     return (
@@ -272,7 +274,7 @@ function NoteEditor({
             <div className="page-topbar">
                 <button type="button" className="back-link" onClick={() => workflows.go({ name: "notes" })}>
                     <ArrowLeft size={14} strokeWidth={1.9} aria-hidden="true" />
-                    Notes
+                    {t("notes.title")}
                 </button>
                 <div className="page-topbar-actions">
                     <span className={`save-status save-${saveState}`} role="status" aria-live="polite">
@@ -283,8 +285,8 @@ function NoteEditor({
                         type="button"
                         className={`icon-toggle${draft.pinned ? " is-active" : ""}`}
                         aria-pressed={draft.pinned}
-                        aria-label={draft.pinned ? "Unpin note" : "Pin note"}
-                        title={draft.pinned ? "Unpin note" : "Pin note"}
+                        aria-label={draft.pinned ? t("note.unpin") : t("note.pin")}
+                        title={draft.pinned ? t("note.unpin") : t("note.pin")}
                         onClick={() => toggleFlag("pinned")}
                     >
                         <Pin size={15} strokeWidth={1.8} fill={draft.pinned ? "currentColor" : "none"} />
@@ -293,8 +295,8 @@ function NoteEditor({
                         type="button"
                         className={`icon-toggle${draft.favorite ? " is-active" : ""}`}
                         aria-pressed={draft.favorite}
-                        aria-label={draft.favorite ? "Remove from favorites" : "Add to favorites"}
-                        title={draft.favorite ? "Remove from favorites" : "Add to favorites"}
+                        aria-label={draft.favorite ? t("note.removeFavorite") : t("note.addFavorite")}
+                        title={draft.favorite ? t("note.removeFavorite") : t("note.addFavorite")}
                         onClick={() => toggleFlag("favorite")}
                     >
                         <Star size={15} strokeWidth={1.8} fill={draft.favorite ? "currentColor" : "none"} />
@@ -302,7 +304,7 @@ function NoteEditor({
                     <button
                         type="button"
                         className="icon-button"
-                        aria-label="More note actions"
+                        aria-label={t("note.moreActions")}
                         aria-haspopup="menu"
                         aria-expanded={menuOpen}
                         onClick={(event) => {
@@ -320,9 +322,9 @@ function NoteEditor({
                     ref={titleRef}
                     className="note-editor-title"
                     value={draft.title}
-                    placeholder="Untitled note"
+                    placeholder={t("note.titlePlaceholder")}
                     maxLength={200}
-                    aria-label="Note title"
+                    aria-label={t("note.titleLabel")}
                     onChange={(event) => updateDraft({ title: event.target.value })}
                     onKeyDown={(event) => {
                         if (event.key === "Enter") {
@@ -334,13 +336,13 @@ function NoteEditor({
 
                 <div className="note-editor-meta">
                     <label className="inline-field">
-                        <span>Project</span>
+                        <span>{t("common.project")}</span>
                         <select
                             className="text-input select-input select-inline"
                             value={draft.projectId ?? ""}
                             onChange={(event) => updateDraft({ projectId: event.target.value || null }, true)}
                         >
-                            <option value="">Unassigned</option>
+                            <option value="">{t("common.unassigned")}</option>
                             {activeProjects.map((project) => (
                                 <option key={project.id} value={project.id}>
                                     {project.name}
@@ -348,42 +350,36 @@ function NoteEditor({
                             ))}
                         </select>
                     </label>
-                    <span className="note-editor-date">Created {formatFullDate(note.createdAt)}</span>
+                    <span className="note-editor-date">
+                        {t("note.createdOn", { date: formatFullDate(note.createdAt, language) })}
+                    </span>
                 </div>
 
-                <div className="note-editor-toolbar" role="toolbar" aria-label="Formatting">
-                    <button
-                        type="button"
-                        className="toolbar-button"
-                        onClick={() => applyFormat("bullet")}
-                        title="Bulleted list"
-                    >
-                        <ListIcon size={14} strokeWidth={1.9} aria-hidden="true" />
-                        <span>List</span>
-                    </button>
-                    <button
-                        type="button"
-                        className="toolbar-button"
-                        onClick={() => applyFormat("numbered")}
-                        title="Numbered list"
-                    >
-                        <ListOrdered size={14} strokeWidth={1.9} aria-hidden="true" />
-                        <span>Numbered</span>
-                    </button>
-                    <span className="toolbar-hint">Shift + Enter for a new paragraph line</span>
+                {/* ─── OLD CODE (kept for reference) ───
+                <div className="note-editor-toolbar" role="toolbar" aria-label={t("note.formatting")}>
+                    ... list / numbered buttons operating on a plain textarea ...
                 </div>
 
                 <textarea
                     ref={contentRef}
                     className="note-editor-content"
                     value={draft.content}
-                    placeholder="Start writing…"
-                    aria-label="Note content"
+                    placeholder={t("note.contentPlaceholder")}
+                    aria-label={t("note.contentLabel")}
                     onChange={(event) => updateDraft({ content: event.target.value })}
+                />
+                ─── NEW: the body is a WYSIWYG surface. Legacy plain-text notes are
+                converted on load, and every write is sanitised before it lands in
+                the database. ─── */}
+                <RichTextEditor
+                    value={draft.content}
+                    onChange={(html) => updateDraft({ content: html })}
+                    placeholder={t("note.contentPlaceholder")}
+                    ariaLabel={t("note.contentLabel")}
                 />
 
                 <div className="note-editor-tags">
-                    <span className="field-label">Tags</span>
+                    <span className="field-label">{t("note.tags")}</span>
                     <div className="tag-editor">
                         {draft.tags.map((tag) => (
                             <TagChip key={tag} tag={tag} onRemove={() => removeTag(tag)} />
@@ -391,8 +387,8 @@ function NoteEditor({
                         <input
                             className="tag-input"
                             value={tagInput}
-                            placeholder="Add tag"
-                            aria-label="Add a tag"
+                            placeholder={t("note.addTag")}
+                            aria-label={t("note.addTagLabel")}
                             onChange={(event) => setTagInput(event.target.value)}
                             onKeyDown={(event) => {
                                 if (event.key === "Enter" || event.key === ",") {
@@ -409,15 +405,15 @@ function NoteEditor({
 
                 {saveState === "error" ? (
                     <div className="inline-error" role="alert">
-                        <span>{saveError ?? "Your changes could not be saved."}</span>
+                        <span>{saveError ?? t("note.saveFailedBody")}</span>
                         <button type="button" className="button button-small button-ghost" onClick={() => void saveNow(draftRef.current)}>
-                            Retry
+                            {t("note.retry")}
                         </button>
                     </div>
                 ) : null}
             </div>
 
-            <Popover open={menuOpen} anchor={menuAnchor} onClose={() => setMenuOpen(false)} label="Note actions">
+            <Popover open={menuOpen} anchor={menuAnchor} onClose={() => setMenuOpen(false)} label={t("noteMenu.label")}>
                 <PopoverItem
                     danger
                     icon={<Trash2 size={14} strokeWidth={1.8} />}
@@ -426,11 +422,11 @@ function NoteEditor({
                         workflows.requestDeleteNote(note);
                     }}
                 >
-                    Delete note
+                    {t("noteMenu.delete")}
                 </PopoverItem>
                 <PopoverDivider />
                 <PopoverItem onSelect={() => { setMenuOpen(false); titleRef.current?.focus(); }}>
-                    Edit title
+                    {t("note.editTitle")}
                 </PopoverItem>
             </Popover>
         </div>

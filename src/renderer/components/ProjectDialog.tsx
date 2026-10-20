@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from "react";
 import { ColorPicker } from "./ColorPicker";
 import { Modal } from "./Modal";
 import type { ProjectColor, ProjectRecord } from "@/db/schema";
+import { useI18n } from "@/i18n";
 
 export interface ProjectDialogValues {
     name: string;
@@ -23,6 +24,7 @@ export function ProjectDialog({
     onSubmit: (values: ProjectDialogValues) => Promise<void> | void;
 }) {
     const formId = useId();
+    const { t } = useI18n();
     const [values, setValues] = useState<ProjectDialogValues>({
         name: "",
         description: "",
@@ -48,14 +50,14 @@ export function ProjectDialog({
         event.preventDefault();
         if (busy) return;
         if (!values.name.trim()) {
-            setError("Give the project a name.");
+            setError(t("projectDialog.nameRequired"));
             return;
         }
         setBusy(true);
         try {
             await onSubmit(values);
         } catch (submitError) {
-            setError(submitError instanceof Error ? submitError.message : "Could not save the project.");
+            setError(submitError instanceof Error ? submitError.message : t("projectDialog.saveFailed"));
             setBusy(false);
         }
     }
@@ -64,17 +66,15 @@ export function ProjectDialog({
         <Modal
             open={open}
             size="small"
-            title={editing ? "Edit project" : "New project"}
+            title={editing ? t("projectDialog.editTitle") : t("projectDialog.newTitle")}
             description={
-                editing
-                    ? "Update how this project appears in the sidebar and dashboard."
-                    : "Projects group related notes and tasks together."
+                editing ? t("projectDialog.editDescription") : t("projectDialog.newDescription")
             }
             onClose={onClose}
             footer={
                 <>
                     <button type="button" className="button button-ghost" onClick={onClose}>
-                        Cancel
+                        {t("common.cancel")}
                     </button>
                     <button
                         type="submit"
@@ -83,32 +83,32 @@ export function ProjectDialog({
                         data-primary
                         disabled={busy}
                     >
-                        {editing ? "Save changes" : "Create project"}
+                        {editing ? t("projectDialog.saveChanges") : t("projectDialog.create")}
                     </button>
                 </>
             }
         >
             <form id={formId} className="form-stack" onSubmit={handleSubmit} noValidate>
                 <label className="field">
-                    <span className="field-label">Name</span>
+                    <span className="field-label">{t("projectDialog.nameLabel")}</span>
                     <input
                         className="text-input"
                         value={values.name}
                         maxLength={120}
                         autoFocus
-                        placeholder="e.g. Workshop planning"
+                        placeholder={t("projectDialog.namePlaceholder")}
                         onChange={(event) => setValues({ ...values, name: event.target.value })}
                         aria-invalid={Boolean(error) && !values.name.trim()}
                     />
                 </label>
                 <label className="field">
-                    <span className="field-label">Description (optional)</span>
+                    <span className="field-label">{t("projectDialog.descriptionLabel")}</span>
                     <textarea
                         className="text-input text-area"
                         rows={3}
                         maxLength={600}
                         value={values.description}
-                        placeholder="What is this project about?"
+                        placeholder={t("projectDialog.descriptionPlaceholder")}
                         onChange={(event) => setValues({ ...values, description: event.target.value })}
                     />
                 </label>

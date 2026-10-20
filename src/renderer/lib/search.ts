@@ -1,4 +1,5 @@
 import type { NoteRecord, ProjectRecord, TaskRecord } from "@/db/schema";
+import { htmlToPlainText } from "@/lib/noteContent";
 
 export interface SearchResults {
     projects: ProjectRecord[];
@@ -35,7 +36,8 @@ export function searchNotes(
     return notes
         .filter((note) => {
             const project = note.projectId ? projectNames.get(note.projectId) ?? "" : "unassigned";
-            const haystack = [note.title, note.content, project, ...note.tags].join("\n");
+            // ─── NEW: bodies are HTML; search the readable text, not the markup. ───
+            const haystack = [note.title, htmlToPlainText(note.content), project, ...note.tags].join("\n");
             return matchesAll(haystack, tokens);
         })
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));

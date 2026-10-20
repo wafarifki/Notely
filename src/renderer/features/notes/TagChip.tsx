@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { useI18n } from "@/i18n";
 
 const TAG_TONES = ["purple", "peach", "mint", "sky", "sand", "rose"] as const;
 
@@ -24,13 +25,14 @@ export function TagChip({
     onSelect?: (tag: string) => void;
     onRemove?: () => void;
 }) {
+    const { t } = useI18n();
     const className = `tag-chip tag-${tagTone(tag)}`;
 
     if (onRemove) {
         return (
             <span className={`${className} tag-editable`}>
                 {tag}
-                <button type="button" className="tag-remove" aria-label={`Remove tag ${tag}`} onClick={onRemove}>
+                <button type="button" className="tag-remove" aria-label={t("note.removeTag", { tag })} onClick={onRemove}>
                     <X size={10} strokeWidth={2.4} />
                 </button>
             </span>

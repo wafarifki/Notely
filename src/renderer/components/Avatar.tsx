@@ -31,15 +31,31 @@ export function Avatar({
     id,
     name,
     size = 34,
-    className = ""
+    className = "",
+    image = null
 }: {
     id?: string | null;
     name: string;
     size?: number;
     className?: string;
+    // ─── NEW: a user-uploaded photo (data URL) wins over the preset avatar. ───
+    image?: string | null;
 }) {
     const avatar = id ? AVATARS[id] : undefined;
     const style = { width: size, height: size };
+
+    if (image) {
+        return (
+            <img
+                src={image}
+                alt=""
+                aria-hidden="true"
+                className={`profile-avatar ${className}`}
+                style={style}
+                draggable={false}
+            />
+        );
+    }
 
     if (avatar) {
         return (
@@ -64,4 +80,43 @@ export function Avatar({
             {initials(name)}
         </span>
     );
+}
+
+// ─── NEW: keep uploaded photos small and square so the profile picture never
+// turns into a stretched blob and the settings row stays under the storage cap. ───
+export const AVATAR_UPLOAD_SIZE = 512;
+
+export function readImageFileAsSquareDataUrl(file: File, size = AVATAR_UPLOAD_SIZE): Promise<string> {
+    return new Promise((resolve, reject) => {
+        if (!file.type.startsWith("image/")) {
+            reject(new Error("Choose an image file such as PNG, JPG or WebP."));
+            return;
+        }
+        const url = URL.createObjectURL(file);
+        const image = new Image();
+        image.onload = () => {
+            try {
+                // Crop to the centred square first, then scale down.
+                const side = Math.min(image.naturalWidth, image.naturalHeight);
+                const sx = (image.naturalWidth - side) / 2;
+                const sy = (image.naturalHeight - side) / 2;
+                const canvas = document.createElement("canvas");
+                canvas.width = size;
+                canvas.height = size;
+                const context = canvas.getContext("2d");
+                if (!context) throw new Error("Could not process that image.");
+                context.drawImage(image, sx, sy, side, side, 0, 0, size, size);
+                resolve(canvas.toDataURL("image/png"));
+            } catch (error) {
+                reject(error instanceof Error ? error : new Error("Could not process that image."));
+            } finally {
+                URL.revokeObjectURL(url);
+            }
+        };
+        image.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error("That image could not be read. Try a different file."));
+        };
+        image.src = url;
+    });
 }

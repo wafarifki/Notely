@@ -18,7 +18,7 @@ await build({
             formats: ["cjs"]
         },
         rollupOptions: {
-            external: ["electron", "node:path"]
+            external: ["electron", "node:path", "node:fs"]
         }
     }
 });

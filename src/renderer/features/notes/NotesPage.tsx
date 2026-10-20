@@ -5,20 +5,24 @@ import { EmptyState } from "@/components/EmptyState";
 import { searchNotes } from "@/lib/search";
 import { sortNotes, sortProjects } from "@/db/schema";
 import { useWorkflows } from "@/feature-hooks";
+import { useI18n } from "@/i18n";
+import type { TranslationKey } from "@/i18n/translations";
 import { NotesColumn } from "./NotesColumn";
 import { tagTone } from "./TagChip";
 
 type SortMode = "updated" | "created" | "title";
 
-const SORT_LABELS: Record<SortMode, string> = {
-    updated: "Last updated",
-    created: "Date created",
-    title: "Title A–Z"
+// ─── NEW: sort labels are translation keys so they follow the interface language. ───
+const SORT_LABELS: Record<SortMode, TranslationKey> = {
+    updated: "notes.sortUpdated",
+    created: "notes.sortCreated",
+    title: "notes.sortTitle"
 };
 
 export function NotesPage({ initialTag }: { initialTag?: string }) {
     const { notes, projects, ready } = useStore();
     const workflows = useWorkflows();
+    const { t } = useI18n();
     const [query, setQuery] = useState("");
     const [projectFilter, setProjectFilter] = useState<string>("all");
     const [tagFilter, setTagFilter] = useState<string>(initialTag ?? "");
@@ -26,14 +30,16 @@ export function NotesPage({ initialTag }: { initialTag?: string }) {
     const [flagged, setFlagged] = useState<"none" | "pinned" | "favorite">("none");
 
     const activeProjects = useMemo(() => sortProjects(projects.filter((project) => !project.archived)), [projects]);
+    // ─── NEW: archived notes live on the Archive page, not in this list. ───
+    const liveNotes = useMemo(() => notes.filter((note) => !note.archived), [notes]);
     const tagCounts = useMemo(() => {
         const counts = new Map<string, number>();
-        notes.forEach((note) => note.tags.forEach((tag) => counts.set(tag, (counts.get(tag) ?? 0) + 1)));
+        liveNotes.forEach((note) => note.tags.forEach((tag) => counts.set(tag, (counts.get(tag) ?? 0) + 1)));
         return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-    }, [notes]);
+    }, [liveNotes]);
 
     const filtered = useMemo(() => {
-        let rows = query.trim() ? searchNotes(notes, projects, query) : notes;
+        let rows = query.trim() ? searchNotes(liveNotes, projects, query) : liveNotes;
         if (projectFilter !== "all") {
             rows = rows.filter((note) => (projectFilter === "none" ? note.projectId === null : note.projectId === projectFilter));
         }
@@ -54,7 +60,7 @@ export function NotesPage({ initialTag }: { initialTag?: string }) {
                 Number(b.pinned) - Number(a.pinned) ||
                 (a.title || "Untitled note").localeCompare(b.title || "Untitled note")
         );
-    }, [notes, projects, query, projectFilter, tagFilter, flagged, sortMode]);
+    }, [liveNotes, projects, query, projectFilter, tagFilter, flagged, sortMode]);
 
     const filtersActive = Boolean(query.trim() || projectFilter !== "all" || tagFilter || flagged !== "none");
 
@@ -66,9 +72,11 @@ export function NotesPage({ initialTag }: { initialTag?: string }) {
         <div className="page notes-page">
             <header className="page-header">
                 <div>
-                    <h1 className="page-title">Notes</h1>
+                    <h1 className="page-title">{t("notes.title")}</h1>
                     <p className="page-subtitle">
-                        {notes.length} note{notes.length === 1 ? "" : "s"} saved locally
+                        {liveNotes.length === 1
+                            ? t("notes.savedLocally", { count: liveNotes.length })
+                            : t("notes.savedLocallyPlural", { count: liveNotes.length })}
                     </p>
                 </div>
                 <div className="page-header-actions">
@@ -81,7 +89,7 @@ export function NotesPage({ initialTag }: { initialTag?: string }) {
                         aria-pressed={flagged === "pinned"}
                     >
                         <Pin size={13} strokeWidth={1.8} aria-hidden="true" />
-                        Pinned
+                        {t("notes.pinned")}
                     </button>
                     <button
                         type="button"
@@ -92,17 +100,18 @@ export function NotesPage({ initialTag }: { initialTag?: string }) {
                         aria-pressed={flagged === "favorite"}
                     >
                         <Star size={13} strokeWidth={1.8} aria-hidden="true" />
-                        Favorites
+                        {t("notes.favorites")}
                     </button>
                     <button
                         type="button"
                         className="button button-primary button-small"
+                        data-tour="new-note"
                         onClick={() => {
                             void workflows.createNote({ open: true });
                         }}
                     >
                         <Plus size={14} strokeWidth={2} aria-hidden="true" />
-                        New note
+                        {t("common.newNote")}
                     </button>
                 </div>
             </header>
@@ -113,22 +122,22 @@ export function NotesPage({ initialTag }: { initialTag?: string }) {
                     <input
                         type="search"
                         value={query}
-                        placeholder="Search title, content, project or tag"
-                        aria-label="Search notes"
+                        placeholder={t("notes.searchPlaceholder")}
+                        aria-label={t("notes.search")}
                         onChange={(event) => setQuery(event.target.value)}
                     />
                 </label>
                 <label className="inline-field">
                     <span>
-                        <Filter size={12} strokeWidth={1.9} aria-hidden="true" /> Project
+                        <Filter size={12} strokeWidth={1.9} aria-hidden="true" /> {t("common.project")}
                     </span>
                     <select
                         className="text-input select-input select-inline"
                         value={projectFilter}
                         onChange={(event) => setProjectFilter(event.target.value)}
                     >
-                        <option value="all">All projects</option>
-                        <option value="none">Unassigned</option>
+                        <option value="all">{t("notes.allProjects")}</option>
+                        <option value="none">{t("common.unassigned")}</option>
                         {activeProjects.map((project) => (
                             <option key={project.id} value={project.id}>
                                 {project.name}
@@ -138,7 +147,7 @@ export function NotesPage({ initialTag }: { initialTag?: string }) {
                 </label>
                 <label className="inline-field">
                     <span>
-                        <ArrowDownAZ size={12} strokeWidth={1.9} aria-hidden="true" /> Sort
+                        <ArrowDownAZ size={12} strokeWidth={1.9} aria-hidden="true" /> {t("notes.sort")}
                     </span>
                     <select
                         className="text-input select-input select-inline"
@@ -147,7 +156,7 @@ export function NotesPage({ initialTag }: { initialTag?: string }) {
                     >
                         {(Object.keys(SORT_LABELS) as SortMode[]).map((mode) => (
                             <option key={mode} value={mode}>
-                                {SORT_LABELS[mode]}
+                                {t(SORT_LABELS[mode])}
                             </option>
                         ))}
                     </select>
@@ -155,11 +164,11 @@ export function NotesPage({ initialTag }: { initialTag?: string }) {
             </div>
 
             {tagCounts.length > 0 ? (
-                <div className="tag-filter-row" role="group" aria-label="Filter by tag">
+                <div className="tag-filter-row" role="group" aria-label={t("notes.filterByTag")} data-tour="tag-filters">
                     {tagFilter ? (
                         <button type="button" className="tag-clear" onClick={() => setTagFilter("")}>
                             <X size={11} strokeWidth={2.4} aria-hidden="true" />
-                            Clear tag
+                            {t("notes.clearTag")}
                         </button>
                     ) : null}
                     {tagCounts.map(([tag, count]) => (
@@ -168,7 +177,7 @@ export function NotesPage({ initialTag }: { initialTag?: string }) {
                                 type="button"
                                 className={`tag-chip tag-${tagTone(tag)}`}
                                 aria-pressed={tagFilter === tag}
-                                aria-label={`Filter notes tagged ${tag} (${count})`}
+                                aria-label={t("notes.filterTagged", { tag, count })}
                                 onClick={() => setTagFilter(tagFilter === tag ? "" : tag)}
                             >
                                 <span aria-hidden="true">{tag}</span>
@@ -185,14 +194,14 @@ export function NotesPage({ initialTag }: { initialTag?: string }) {
                 <div className="panel">
                     <EmptyState
                         icon={FileText}
-                        title={notes.length === 0 ? "No notes yet" : "No notes match your filters"}
+                        title={liveNotes.length === 0 ? t("notes.emptyTitle") : t("notes.emptyNoMatchTitle")}
                         description={
-                            notes.length === 0
-                                ? "Start with a blank note and capture what matters."
-                                : "Try a different search term or clear the active filters."
+                            liveNotes.length === 0
+                                ? t("notes.emptyText")
+                                : t("notes.emptyNoMatchText")
                         }
                         action={
-                            notes.length === 0 ? (
+                            liveNotes.length === 0 ? (
                                 <button
                                     type="button"
                                     className="button button-primary button-small"
@@ -200,7 +209,7 @@ export function NotesPage({ initialTag }: { initialTag?: string }) {
                                         void workflows.createNote({ open: true });
                                     }}
                                 >
-                                    New note
+                                    {t("common.newNote")}
                                 </button>
                             ) : filtersActive ? (
                                 <button
@@ -213,7 +222,7 @@ export function NotesPage({ initialTag }: { initialTag?: string }) {
                                         setFlagged("none");
                                     }}
                                 >
-                                    Clear filters
+                                    {t("common.clearFilters")}
                                 </button>
                             ) : null
                         }
@@ -228,6 +237,7 @@ export function NotesPage({ initialTag }: { initialTag?: string }) {
                     handlers={{
                         onOpen: (note) => workflows.openNote(note.id),
                         onDelete: workflows.requestDeleteNote,
+                        onArchive: (note) => workflows.archiveNote(note, true),
                         onToggleFlag: workflows.toggleNoteFlag,
                         onMove: workflows.moveNote,
                         onSelectTag: (tag) => setTagFilter(tag),

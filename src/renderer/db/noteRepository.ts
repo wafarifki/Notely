@@ -1,4 +1,5 @@
 import { createId } from "@/lib/ids";
+import { validationMessage } from "@/lib/validationMessages";
 import type { NotesDatabase } from "./database";
 import { ValidationError } from "./projectRepository";
 import type { NoteRecord } from "./schema";
@@ -27,14 +28,20 @@ export function normalizeTags(tags: string[]): string[] {
     return result;
 }
 
-export function validateNoteInput(input: NoteInput): NoteInput {
+export function validateNoteInput(input: NoteInput, options: { allowEmpty?: boolean } = {}): NoteInput {
     const title = input.title.trim();
     const content = input.content;
-    if (!title && !content.trim()) {
-        throw new ValidationError("title", "Add a title or some content before saving.");
+    if (!options.allowEmpty && !title && !content.trim()) {
+        throw new ValidationError(
+            "title",
+            validationMessage("validation.noteEmpty", "Add a title or some content before saving.")
+        );
     }
     if (title.length > 200) {
-        throw new ValidationError("title", "Title must be 200 characters or fewer.");
+        throw new ValidationError(
+            "title",
+            validationMessage("validation.noteTitleTooLong", "Title must be 200 characters or fewer.")
+        );
     }
     return {
         title: title.slice(0, 200),
@@ -60,7 +67,7 @@ export function noteRepository(db: NotesDatabase) {
         },
 
         async create(input: NoteInput): Promise<NoteRecord> {
-            const data = validateNoteInput(input);
+            const data = validateNoteInput(input, { allowEmpty: true });
             const now = new Date().toISOString();
             const record: NoteRecord = {
                 id: createId("note"),
@@ -70,6 +77,7 @@ export function noteRepository(db: NotesDatabase) {
                 tags: data.tags,
                 pinned: false,
                 favorite: false,
+                archived: false,
                 order: await nextOrder(),
                 createdAt: now,
                 updatedAt: now
@@ -82,7 +90,7 @@ export function noteRepository(db: NotesDatabase) {
             const data = validateNoteInput(input);
             const existing = await db.notes.get(id);
             if (!existing) {
-                throw new Error("Note no longer exists.");
+                throw new Error(validationMessage("validation.noteGone", "Note no longer exists."));
             }
             const next: NoteRecord = {
                 ...existing,
@@ -99,7 +107,7 @@ export function noteRepository(db: NotesDatabase) {
         async setFlag(id: string, flag: "pinned" | "favorite"): Promise<NoteRecord> {
             const existing = await db.notes.get(id);
             if (!existing) {
-                throw new Error("Note no longer exists.");
+                throw new Error(validationMessage("validation.noteGone", "Note no longer exists."));
             }
             const next = { ...existing, [flag]: !existing[flag], updatedAt: new Date().toISOString() };
             await db.notes.put(next);
@@ -109,9 +117,20 @@ export function noteRepository(db: NotesDatabase) {
         async moveToProject(id: string, projectId: string | null): Promise<NoteRecord> {
             const existing = await db.notes.get(id);
             if (!existing) {
-                throw new Error("Note no longer exists.");
+                throw new Error(validationMessage("validation.noteGone", "Note no longer exists."));
             }
             const next = { ...existing, projectId, updatedAt: new Date().toISOString() };
+            await db.notes.put(next);
+            return next;
+        },
+
+        // ─── NEW: archive / restore a note without deleting it. ───
+        async setArchived(id: string, archived: boolean): Promise<NoteRecord> {
+            const existing = await db.notes.get(id);
+            if (!existing) {
+                throw new Error(validationMessage("validation.noteGone", "Note no longer exists."));
+            }
+            const next = { ...existing, archived, updatedAt: new Date().toISOString() };
             await db.notes.put(next);
             return next;
         },

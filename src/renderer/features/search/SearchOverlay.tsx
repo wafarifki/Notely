@@ -5,6 +5,8 @@ import { useStore } from "@/app/store";
 import { formatDueLabel } from "@/lib/dates";
 import { searchAll, type SearchResults } from "@/lib/search";
 import { useWorkflows } from "@/feature-hooks";
+import { useI18n } from "@/i18n";
+import type { TranslationKey } from "@/i18n/translations";
 
 interface ResultItem {
     key: string;
@@ -15,9 +17,17 @@ interface ResultItem {
     onOpen: () => void;
 }
 
+// ─── NEW: group headings are translated while the internal keys stay stable. ───
+const GROUP_KEYS: Record<ResultItem["group"], TranslationKey> = {
+    Projects: "search.groupProjects",
+    Notes: "search.groupNotes",
+    Tasks: "search.groupTasks"
+};
+
 export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
     const { projects, notes, tasks } = useStore();
     const workflows = useWorkflows();
+    const { t } = useI18n();
     const [query, setQuery] = useState("");
     const [activeIndex, setActiveIndex] = useState(0);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -32,7 +42,13 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
     }, [open]);
 
     const results: SearchResults = useMemo(
-        () => searchAll(query, notes, tasks, projects),
+        () =>
+            searchAll(
+                query,
+                notes.filter((note) => !note.archived),
+                tasks.filter((task) => !task.archived),
+                projects
+            ),
         [query, notes, tasks, projects]
     );
 
@@ -43,26 +59,26 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
             key: `project-${project.id}`,
             group: "Projects",
             title: project.name,
-            meta: project.description || "Project",
+            meta: project.description || t("search.metaProject"),
             color: project.color,
             onOpen: () => workflows.go({ name: "project", id: project.id })
         }));
         const noteItems = results.notes.slice(0, 8).map<ResultItem>((note) => ({
             key: `note-${note.id}`,
             group: "Notes",
-            title: note.title || "Untitled note",
-            meta: note.projectId ? projectNames.get(note.projectId) ?? "Note" : "Unassigned",
+            title: note.title || t("common.untitledNote"),
+            meta: note.projectId ? projectNames.get(note.projectId) ?? t("search.metaNote") : t("common.unassigned"),
             onOpen: () => workflows.openNote(note.id)
         }));
         const taskItems = results.tasks.slice(0, 8).map<ResultItem>((task) => ({
             key: `task-${task.id}`,
             group: "Tasks",
             title: task.title,
-            meta: task.completed ? "Completed" : formatDueLabel(task.dueAt),
+            meta: task.completed ? t("common.completed") : formatDueLabel(task.dueAt, new Date(), t),
             onOpen: () => workflows.openTaskDialog(task)
         }));
         return [...projectItems, ...noteItems, ...taskItems];
-    }, [results, projectNames, workflows]);
+    }, [results, projectNames, workflows, t]);
 
     useEffect(() => {
         setActiveIndex(0);
@@ -113,36 +129,33 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
                 if (event.target === event.currentTarget) onClose();
             }}
         >
-            <div className="search-dialog" role="dialog" aria-modal="true" aria-label="Search workspace">
+            <div className="search-dialog" role="dialog" aria-modal="true" aria-label={t("search.dialogLabel")}>
                 <div className="search-input-row">
                     <Search size={16} strokeWidth={1.9} aria-hidden="true" />
                     <input
                         ref={inputRef}
                         type="text"
                         value={query}
-                        placeholder="Search projects, notes and tasks"
-                        aria-label="Search projects, notes and tasks"
+                        placeholder={t("search.placeholder")}
+                        aria-label={t("search.placeholder")}
                         aria-controls="search-results"
                         aria-activedescendant={items[activeIndex] ? `search-item-${items[activeIndex].key}` : undefined}
                         onChange={(event) => setQuery(event.target.value)}
                     />
-                    <button type="button" className="icon-button" onClick={onClose} aria-label="Close search">
+                    <button type="button" className="icon-button" onClick={onClose} aria-label={t("search.close")}>
                         <X size={15} strokeWidth={1.9} />
                     </button>
                 </div>
                 <div className="search-results scroll-area" id="search-results" ref={listRef} role="listbox">
                     {query.trim() === "" ? (
-                        <p className="search-hint">
-                            Type to search across project names, note titles and bodies, tags and tasks. Use ↑ ↓ to
-                            move and Enter to open.
-                        </p>
+                        <p className="search-hint">{t("search.hint")}</p>
                     ) : items.length === 0 ? (
-                        <p className="search-hint">No matches for “{query.trim()}”.</p>
+                        <p className="search-hint">{t("search.noMatches", { query: query.trim() })}</p>
                     ) : (
                         groups.map((group) =>
                             group.items.length === 0 ? null : (
-                                <div key={group.name} className="search-group" role="group" aria-label={group.name}>
-                                    <div className="search-group-label">{group.name}</div>
+                                <div key={group.name} className="search-group" role="group" aria-label={t(GROUP_KEYS[group.name])}>
+                                    <div className="search-group-label">{t(GROUP_KEYS[group.name])}</div>
                                     {group.items.map((item) => {
                                         cursor += 1;
                                         const index = cursor;
@@ -178,9 +191,13 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
                     )}
                 </div>
                 <div className="search-footer">
-                    <span>{results.total} result{results.total === 1 ? "" : "s"}</span>
                     <span>
-                        <kbd>Esc</kbd> to close
+                        {results.total === 1
+                            ? t("search.resultOne")
+                            : t("search.resultsMany", { count: results.total })}
+                    </span>
+                    <span>
+                        <kbd>Esc</kbd> {t("search.escToClose")}
                     </span>
                 </div>
             </div>

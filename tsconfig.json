@@ -18,9 +18,8 @@
         "noFallthroughCasesInSwitch": true,
         "noUncheckedSideEffectImports": true,
         "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"],
-        "baseUrl": ".",
         "paths": {
-            "@/*": ["src/renderer/*"]
+            "@/*": ["./src/renderer/*"]
         }
     },
     "include": ["src/renderer", "tests", "vite.config.ts", "eslint.config.mjs"]

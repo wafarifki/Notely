@@ -1,0 +1,109 @@
+/* Task checklist: editor rows inside the task dialog and the read-only
+   progress hint shown on task rows. */
+
+.checklist-field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.checklist-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.checklist-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 6px;
+    border-radius: var(--radius-control);
+    border: 1px solid var(--line-soft);
+    background: var(--surface-sunken);
+    transition: border-color var(--duration-fast) var(--ease-calm);
+}
+
+.checklist-row:focus-within {
+    border-color: color-mix(in srgb, var(--accent-purple) 55%, var(--line));
+}
+
+.checklist-box {
+    appearance: none;
+    width: 15px;
+    height: 15px;
+    flex: 0 0 auto;
+    margin: 0;
+    border: 1px solid color-mix(in srgb, var(--line) 70%, var(--text-muted));
+    border-radius: 3.5px;
+    background: var(--skin);
+    cursor: pointer;
+    position: relative;
+    transition: background var(--duration-fast) var(--ease-calm), border-color var(--duration-fast) var(--ease-calm);
+}
+
+.checklist-box:checked {
+    background: var(--button-bg);
+    border-color: var(--button-bg);
+}
+
+.checklist-box:checked::after {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 1px;
+    width: 4px;
+    height: 8px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.checklist-box:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+}
+
+.checklist-text.text-input {
+    flex: 1;
+    min-height: 26px;
+    padding: 2px 7px;
+    border: none;
+    background: transparent;
+    font-size: 12.5px;
+}
+
+.checklist-text.text-input:focus {
+    box-shadow: none;
+}
+
+.checklist-row.is-done .checklist-text {
+    color: var(--text-muted);
+    text-decoration: line-through;
+}
+
+.checklist-remove {
+    flex: 0 0 auto;
+    color: var(--text-muted);
+}
+
+.checklist-remove:hover {
+    color: var(--danger);
+    background: var(--danger-soft);
+}
+
+.checklist-add {
+    align-self: flex-start;
+}
+
+/* Read-only progress hint on task rows. */
+.task-row-checklist {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10.5px;
+    color: var(--text-muted);
+}

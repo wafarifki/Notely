@@ -71,7 +71,7 @@
     inset: 0;
     display: flex;
     flex-direction: column;
-    background: #fff;
+    background: var(--skin);
     clip-path: polygon(
         0 0,
         var(--tab-width) 0,
@@ -80,7 +80,7 @@
         100% 100%,
         0 100%
     );
-    filter: drop-shadow(0 0 0.5px #d9dce4);
+    filter: drop-shadow(0 0 0.5px var(--card-silhouette));
     transition: box-shadow var(--duration-base) var(--ease-calm);
 }
 
@@ -90,7 +90,7 @@
     inset: 0;
     border-radius: 8px;
     pointer-events: none;
-    box-shadow: inset 0 0 0 1px #e4e6ea;
+    box-shadow: inset 0 0 0 1px var(--line-soft);
     clip-path: inherit;
 }
 
@@ -136,7 +136,7 @@
     text-align: center;
     font-size: 10.5px;
     letter-spacing: 0.02em;
-    color: #a08db8;
+    color: var(--text-muted);
     pointer-events: none;
 }
 
@@ -153,16 +153,16 @@
 
 .folder-card-date {
     font-size: 10.8px;
-    color: #7c7e88;
+    color: var(--text-secondary);
     white-space: nowrap;
 }
 
 .folder-card:hover .folder-card-face {
-    box-shadow: 0 4px 14px rgba(60, 50, 90, 0.08);
+    box-shadow: 0 4px 14px var(--hover-shadow, rgba(60, 50, 90, 0.08));
 }
 
 .folder-card:focus-visible .folder-card-face {
-    box-shadow: 0 0 0 2px rgba(151, 79, 208, 0.35);
+    box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.35);
 }
 
 .folder-card[draggable="true"] {
@@ -186,11 +186,11 @@
     inset: 0;
     display: grid;
     place-items: center;
-    border: 1px dashed #cdbce6;
+    border: 1px dashed color-mix(in srgb, var(--accent-purple) 30%, var(--line));
     border-radius: 8px;
     background:
-        repeating-linear-gradient(115deg, rgba(151, 79, 208, 0.075) 0 1.2px, transparent 1.2px 18px),
-        #f9f6fd;
+        repeating-linear-gradient(115deg, rgba(var(--accent-rgb), 0.09) 0 1.2px, transparent 1.2px 18px),
+        var(--surface-sunken);
     clip-path: polygon(0 0, var(--tab-width, 78px) 0, calc(var(--tab-width, 78px) + var(--tab-diagonal, 24px)) var(--tab-height, 11px), 100% var(--tab-height, 11px), 100% 100%, 0 100%);
 }
 
@@ -200,7 +200,7 @@
 
 .drop-slot span {
     font-size: 10.5px;
-    color: #9a86b5;
+    color: var(--text-muted);
     letter-spacing: 0.02em;
 }
 
@@ -235,7 +235,7 @@
 }
 
 .projects-grid.is-showcase .is-showcase-target .folder-card.is-elevated .folder-card-face {
-    box-shadow: 0 16px 30px rgba(70, 40, 110, 0.2), 0 3px 8px rgba(70, 40, 110, 0.12);
+    box-shadow: var(--shadow-card-lift);
 }
 
 .tasks-panel {
@@ -243,7 +243,17 @@
     min-height: 316px;
     display: flex;
     flex-direction: column;
+    /* ─── OLD CODE (kept for reference) ───
     justify-content: center;
+    ─── NEW: centring was meant for the empty state, but it also centred a real
+    task list, so a single task sat in the middle of the panel. Keep children
+    top-aligned and centre only the empty state (rule below). ─── */
+    justify-content: flex-start;
+}
+
+/* ─── NEW: the empty state is the only thing that should be vertically centred. ─── */
+.tasks-panel > .empty-state {
+    margin-block: auto;
 }
 
 .task-list {
@@ -288,19 +298,19 @@
     width: 19px;
     height: 19px;
     border-radius: 3.5px;
-    border: 1px solid #d6d6d6;
-    background: #fff;
+    border: 1px solid color-mix(in srgb, var(--line) 70%, var(--text-muted));
+    background: var(--skin);
     color: #fff;
     transition: background var(--duration-fast) var(--ease-calm), border-color var(--duration-fast) var(--ease-calm);
 }
 
 .task-checkbox:hover .task-checkbox-box {
-    border-color: #b9a4d6;
+    border-color: color-mix(in srgb, var(--accent-purple) 40%, var(--line));
 }
 
 .task-checkbox.is-checked .task-checkbox-box {
-    background: #9a53d2;
-    border-color: #9a53d2;
+    background: var(--button-bg);
+    border-color: var(--button-bg);
 }
 
 .task-checkbox input:focus-visible + .task-checkbox-box {
@@ -334,26 +344,26 @@
 
 .task-row-meta {
     font-size: 10.8px;
-    color: #6d6e76;
+    color: var(--text-secondary);
     line-height: 1.3;
 }
 
 .task-row-meta.is-overdue {
-    color: #c2543f;
+    color: var(--overdue);
 }
 
 .task-row.is-completed .task-row-title {
-    color: #7c7a8f;
+    color: var(--text-secondary);
     text-decoration: line-through;
-    text-decoration-color: rgba(124, 122, 143, 0.5);
+    text-decoration-color: color-mix(in srgb, var(--text-secondary) 55%, transparent);
 }
 
 .task-row.is-completed .task-row-meta {
-    color: #a2a1b0;
+    color: var(--text-muted);
 }
 
 .task-row-project {
-    color: #9a98a8;
+    color: var(--text-muted);
 }
 
 .task-star {
@@ -362,24 +372,24 @@
     width: 24px;
     height: 24px;
     flex: 0 0 auto;
-    color: #8d8c98;
+    color: var(--text-secondary);
     border-radius: 4px;
     transition: color var(--duration-fast) var(--ease-calm), background var(--duration-fast) var(--ease-calm);
 }
 
 .task-star:hover {
-    background: #f6f2fb;
-    color: #a06cc9;
+    background: var(--hover-tint);
+    color: var(--accent-purple);
 }
 
 .task-star.is-active {
-    color: #9a53d2;
+    color: var(--button-bg);
 }
 
 .notes-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 20px 16px;
+    gap: 16px 14px;
 }
 
 .notes-grid.is-full {
@@ -391,21 +401,41 @@
     min-width: 0;
 }
 
+/* ─── OLD CODE (kept for reference) ───
 .note-card {
     display: flex;
     flex-direction: column;
     min-height: 248px;
     height: 100%;
     padding: 19px 19px 16px;
-    background: #fff;
+    background: var(--skin);
     border: 1px solid var(--line);
     border-radius: var(--radius-card);
-    transition: box-shadow var(--duration-base) var(--ease-calm), border-color var(--duration-base) var(--ease-calm);
+    transition: box-shadow …, border-color …;
+}
+─── NEW: the fixed 248px height plus the 12px gap above the footer left a
+large dead band under short notes, and the excerpt always reserved four lines.
+The card now grows with its content, keeps a fixed 3-line excerpt, and pins the
+footer to the bottom edge with a single measured gap. ─── */
+.note-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 176px;
+    height: 100%;
+    padding: 16px 17px 14px;
+    background: var(--skin);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(38, 30, 64, 0.04);
+    transition: box-shadow var(--duration-base) var(--ease-calm), border-color var(--duration-base) var(--ease-calm),
+        transform var(--duration-base) var(--ease-calm);
 }
 
 .note-card:hover {
-    border-color: #d6d9e2;
-    box-shadow: 0 4px 14px rgba(60, 50, 90, 0.06);
+    border-color: color-mix(in srgb, var(--accent-purple) 26%, var(--line));
+    box-shadow: 0 10px 22px -12px rgba(48, 34, 82, 0.28), 0 2px 6px rgba(48, 34, 82, 0.06);
+    transform: translateY(-1px);
 }
 
 .note-card[draggable="true"] {
@@ -419,24 +449,62 @@
 
 .note-card.is-floating {
     z-index: var(--z-drag);
-    border-color: #e2dced;
-    box-shadow: 0 16px 32px rgba(70, 40, 110, 0.2), 0 4px 10px rgba(70, 40, 110, 0.1);
+    border-color: var(--line);
+    box-shadow: var(--shadow-card-lift);
+    transform: none;
 }
 
 .note-card-top {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 8px;
-    min-height: 16px;
+    min-height: 18px;
+}
+
+/* ─── NEW: flags sit on the left as a tight cluster; the date is secondary
+   and shrinks first when the card is narrow. ─── */
+.note-card-flags {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex: 0 0 auto;
 }
 
 .note-card-date {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 10.8px;
-    color: #7a7c86;
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 10.5px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* When there are no flags the date leads the row. */
+.note-card-flags:empty + .note-card-date {
+    flex: 1 1 auto;
+}
+
+.note-card-menu {
+    flex: 0 0 auto;
+    opacity: 0;
+    transition: opacity var(--duration-fast) var(--ease-calm), background var(--duration-fast) var(--ease-calm),
+        color var(--duration-fast) var(--ease-calm);
+}
+
+.note-card:hover .note-card-menu,
+.note-card:focus-within .note-card-menu,
+.note-card.is-menu-open .note-card-menu {
+    opacity: 1;
+}
+
+@media (hover: none) {
+    .note-card-menu {
+        opacity: 1;
+    }
 }
 
 .note-card-flag {
@@ -445,21 +513,25 @@
 }
 
 .note-card-flag.is-favorite {
-    color: #b487dc;
+    color: var(--accent-purple);
 }
 
 .note-card-body {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
     text-align: left;
     width: 100%;
-    padding: 17px 0 0;
+    padding: 0;
     flex: 1 1 auto;
+    min-height: 0;
 }
 
 .note-card-title {
     font-size: 13.6px;
-    font-weight: 500;
+    font-weight: 600;
     line-height: 19px;
+    letter-spacing: -0.005em;
     color: var(--text-strong);
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -468,46 +540,56 @@
     overflow-wrap: anywhere;
 }
 
+/* ─── NEW: a fixed three-line clamp keeps every card the same height without
+   leaving an empty gap at the bottom of short notes. ─── */
 .note-card-excerpt {
-    margin-top: 11px;
+    margin: 0;
     font-size: 12px;
-    line-height: 21px;
-    color: #7a7b80;
+    line-height: 19px;
+    color: var(--text-secondary);
     display: -webkit-box;
-    -webkit-line-clamp: 4;
+    -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
     overflow-wrap: anywhere;
 }
 
-.note-card:has(.note-card-tags) .note-card-excerpt {
-    -webkit-line-clamp: 4;
+.note-card-bottom {
+    flex: 0 0 auto;
+    margin-top: auto;
+    padding-top: 2px;
 }
 
-.note-card-bottom {
-    margin-top: 12px;
-    min-height: 29px;
+.note-card-meta {
     display: flex;
-    align-items: flex-end;
+    align-items: center;
+    min-height: 22px;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .note-card-tags {
     display: flex;
     flex-wrap: nowrap;
-    gap: 8px;
+    gap: 6px;
     overflow: hidden;
-    height: 30px;
-    align-items: flex-start;
+    align-items: center;
+    min-width: 0;
 }
 
-.note-card-bottom {
+.note-card-tag-more {
     flex: 0 0 auto;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-muted);
+    padding: 0 2px;
 }
 
 .note-card-project {
     display: inline-flex;
     align-items: center;
     gap: 7px;
+    max-width: 100%;
     font-size: 10.8px;
     color: var(--text-secondary);
     white-space: nowrap;
@@ -515,17 +597,27 @@
     text-overflow: ellipsis;
 }
 
+.note-card-project.is-muted {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
 .tag-chip {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    height: 29px;
-    padding: 0 14px;
-    border-radius: var(--radius-chip);
+    height: 22px;
+    padding: 0 9px;
+    border-radius: 999px;
     font-size: 10.5px;
-    font-weight: 400;
+    font-weight: 500;
     white-space: nowrap;
+    /* ─── OLD CODE (kept for reference) ───
     border: none;
+    ─── NEW: without a border the chips melted into the card background. A
+    subtle tinted outline (mixed from each tag's own ink) keeps them readable
+    on both light and dark surfaces. ─── */
+    border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
     transition: filter var(--duration-fast) var(--ease-calm);
 }
 
@@ -534,33 +626,33 @@ button.tag-chip:hover {
 }
 
 .tag-purple {
-    background: #f2e9f8;
-    color: #5e4276;
+    background: var(--tag-purple-bg);
+    color: var(--tag-purple-ink);
 }
 
 .tag-peach {
-    background: #fcebe6;
-    color: #834d3e;
+    background: var(--tag-peach-bg);
+    color: var(--tag-peach-ink);
 }
 
 .tag-mint {
-    background: #e3f3ea;
-    color: #2e6b50;
+    background: var(--tag-mint-bg);
+    color: var(--tag-mint-ink);
 }
 
 .tag-sky {
-    background: #e2eefb;
-    color: #375d86;
+    background: var(--tag-sky-bg);
+    color: var(--tag-sky-ink);
 }
 
 .tag-sand {
-    background: #f8efd5;
-    color: #77602c;
+    background: var(--tag-sand-bg);
+    color: var(--tag-sand-ink);
 }
 
 .tag-rose {
-    background: #fbe3ee;
-    color: #8a3f63;
+    background: var(--tag-rose-bg);
+    color: var(--tag-rose-ink);
 }
 
 .tag-editable {
@@ -579,15 +671,15 @@ button.tag-chip:hover {
 
 .tag-remove:hover {
     opacity: 1;
-    background: rgba(0, 0, 0, 0.06);
+    background: color-mix(in srgb, var(--ink) 10%, transparent);
 }
 
 .drop-slot-note {
     clip-path: none;
     border-radius: var(--radius-card);
     background:
-        repeating-linear-gradient(115deg, rgba(151, 79, 208, 0.12) 0 1.4px, transparent 1.4px 12px),
-        #f9f6fc;
+        repeating-linear-gradient(115deg, rgba(var(--accent-rgb), 0.14) 0 1.4px, transparent 1.4px 12px),
+        var(--surface-sunken);
 }
 
 .notes-grid.is-showcase .note-grid-cell.is-showcase-target {
@@ -600,8 +692,9 @@ button.tag-chip:hover {
     right: 0;
     top: 0;
     z-index: 2;
-    height: 263px;
-    box-shadow: 0 20px 40px rgba(70, 40, 110, 0.2), 0 6px 12px rgba(70, 40, 110, 0.1);
+    /* ─── NEW: matches the taller card the redesign produces. ─── */
+    height: 210px;
+    box-shadow: var(--shadow-card-lift);
 }
 
 .notes-grid.is-showcase .drop-slot-showcase {
@@ -638,7 +731,7 @@ button.tag-chip:hover {
 }
 
 .activity-row-button:not(:disabled):hover {
-    background: #faf8fd;
+    background: var(--surface-sunken);
 }
 
 .activity-row-text {
@@ -660,7 +753,7 @@ button.tag-chip:hover {
 
 .activity-detail {
     font-size: 10.5px;
-    color: #6e717a;
+    color: var(--text-secondary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -669,7 +762,7 @@ button.tag-chip:hover {
 .activity-date {
     flex: 0 0 auto;
     font-size: 10.5px;
-    color: #7d7d89;
+    color: var(--text-muted);
     white-space: nowrap;
     padding-right: 4px;
 }

@@ -2,6 +2,7 @@ import { MoreHorizontal } from "lucide-react";
 import type { CSSProperties, Ref } from "react";
 import type { ProjectRecord } from "@/db/schema";
 import { formatFullDate } from "@/lib/dates";
+import { useI18n } from "@/i18n";
 
 interface FolderCardProps {
     project: ProjectRecord;
@@ -28,7 +29,7 @@ interface FolderCardProps {
 
 export function FolderCard({
     project,
-    date = formatFullDate(project.createdAt),
+    date,
     compact,
     dragMode,
     dragging,
@@ -48,6 +49,8 @@ export function FolderCard({
     ariaSetSize,
     slotLabel
 }: FolderCardProps) {
+    const { t, language } = useI18n();
+    const displayDate = date ?? formatFullDate(project.createdAt, language);
     const classes = [
         "folder-card",
         dragging ? "is-dragging" : "",
@@ -67,7 +70,7 @@ export function FolderCard({
             draggable={draggable}
             data-project-id={project.id}
             aria-label={project.name}
-            aria-roledescription="Project card"
+            aria-roledescription={t("project.cardRole")}
             aria-posinset={ariaPosInSet}
             aria-setsize={ariaSetSize}
             onPointerDown={onPointerDown}
@@ -100,11 +103,11 @@ export function FolderCard({
                     </span>
                 ) : null}
                 <div className="folder-card-footer">
-                    <span className="folder-card-date">{date}</span>
+                    <span className="folder-card-date">{displayDate}</span>
                     <button
                         type="button"
                         className="card-menu-button"
-                        aria-label={`Project actions for ${project.name}`}
+                        aria-label={t("project.actionsFor", { name: project.name })}
                         aria-haspopup="menu"
                         aria-expanded={menuOpen ? "true" : "false"}
                         onClick={(event) => {

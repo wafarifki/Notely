@@ -2,9 +2,9 @@
     --canvas-pink: #e9cfe3;
     --canvas-blue: #c9d8eb;
     --canvas-lavender: #dcccf0;
-    --canvas-pink-full: #f1d9e1;
-    --canvas-blue-full: #cddaed;
-    --canvas-lavender-full: #dfd2f4;
+    --canvas-pink-full: var(--canvas-a, #f1d9e1);
+    --canvas-blue-full: var(--canvas-b, #cddaed);
+    --canvas-lavender-full: var(--canvas-c, #dfd2f4);
 
     --surface: #ffffff;
     --main-surface: #f6f8fc;
@@ -15,9 +15,17 @@
     --line: #dee2eb;
     --line-soft: #e6e8eb;
 
-    --accent-purple: #974fd0;
-    --accent-purple-strong: #7d3fb1;
-    --accent-purple-soft: #f3eafb;
+    /* ─── OLD CODE (kept for reference) ───
+    --accent-purple: var(--accent-user, #974fd0);
+    --accent-purple-strong: var(--accent-user-strong, #7d3fb1);
+    --accent-purple-soft: var(--accent-user-soft, #f3eafb);
+    ─── */
+    /* ─── NEW: the accent tokens are now derived from the single `--accent-user`
+    colour, so every preset (Sunset, Ocean, …) and every custom hex reaches the
+    same tokens the dark theme already used. ─── */
+    --accent-purple: var(--accent-user, #974fd0);
+    --accent-purple-strong: color-mix(in srgb, var(--accent-user, #974fd0) 80%, #000000);
+    --accent-purple-soft: var(--accent-user-soft, #f3eafb);
     --accent-green: #1ba879;
     --accent-orange: #f5824d;
     --accent-yellow: #ffd43b;
@@ -33,7 +41,35 @@
 
     --danger: #d64545;
     --danger-soft: #fdecec;
-    --focus: rgba(151, 79, 208, 0.45);
+    --accent-rgb: var(--accent-user-rgb, 151, 79, 208);
+    --focus: rgba(var(--accent-rgb), 0.45);
+
+    --surface-raised: #ffffff;
+    --surface-elevated: #ffffff;
+    --skin: #ffffff;
+    --ink: #2a2745;
+    --ink-strong: #0d0a2e;
+    --ink-muted: #5b5f6d;
+    --hover-tint: #f2eff8;
+    --hover-tint-strong: #f5f1fa;
+    --input-ink: #2c2942;
+    /* ─── OLD CODE (kept for reference) ───
+    --button-bg: #9a53d2;
+    ─── */
+    /* ─── NEW: this was a hardcoded purple, so primary buttons stayed Lavender in
+    light mode no matter which accent was picked (only the hover rule followed
+    `--accent-user`). The button now uses the live accent in both themes. ─── */
+    --button-bg: var(--accent-user, #9a53d2);
+    --button-bg-hover: color-mix(in srgb, var(--accent-user, #9a53d2) 88%, #000000);
+    --button-ink: #ffffff;
+    --card-silhouette: #d9dce4;
+    --hover-shadow: rgba(60, 50, 90, 0.08);
+    --surface-sunken: #faf8fd;
+    --surface-hover: #f7f5fb;
+    --control-bg: #ffffff;
+    --control-border: #dee2eb;
+    --overlay-scrim: rgba(28, 20, 48, 0.34);
+    --canvas-glow: rgba(255, 255, 255, 0.55);
 
     --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
 
@@ -61,4 +97,52 @@
     --z-popover: 60;
     --z-modal: 80;
     --z-toast: 90;
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+
+    --surface: #1b1926;
+    --surface-raised: #221f2f;
+    --surface-sunken: #191724;
+    --surface-hover: #272338;
+    --surface-elevated: #221f2f;
+    --skin: #1b1926;
+    --ink: #e6e2f2;
+    --ink-strong: #f7f5ff;
+    --ink-muted: #b7b3c7;
+    --hover-tint: #2a2639;
+    --hover-tint-strong: #302b41;
+    --input-ink: #ece9f6;
+    --button-bg: var(--accent-user, #9a53d2);
+    --button-bg-hover: color-mix(in srgb, var(--accent-user, #9a53d2) 84%, #ffffff);
+    --button-ink: #ffffff;
+    --card-silhouette: #3a3350;
+    --hover-shadow: rgba(0, 0, 0, 0.45);
+    --main-surface: #15131f;
+    --text-primary: #ece9f6;
+    --text-strong: #f7f5ff;
+    --text-secondary: #a7a3ba;
+    --text-muted: #8f8ba4;
+    --line: #2f2b40;
+    --line-soft: #292536;
+    --control-bg: #201d2c;
+    --control-border: #34304a;
+    --accent-purple-soft: var(--accent-user-soft, #2c2039);
+    --accent-purple-strong: color-mix(in srgb, var(--accent-user, #9a53d2) 55%, #ffffff);
+    --accent-purple: color-mix(in srgb, var(--accent-user, #9a53d2) 80%, #ffffff);
+    --overlay-scrim: rgba(8, 6, 14, 0.6);
+
+    --danger: #f0787b;
+    --danger-soft: #35212a;
+    --accent-green: #45c79a;
+    --accent-orange: #f79a6b;
+    --accent-yellow: #f3cf5c;
+    --accent-pink: #ef79c8;
+    --accent-cyan: #63cde5;
+
+    --shadow-panel: 0 24px 44px -18px rgba(0, 0, 0, 0.7), 0 6px 16px -8px rgba(0, 0, 0, 0.5);
+    --shadow-card-lift: 0 14px 28px rgba(0, 0, 0, 0.45), 0 3px 8px rgba(0, 0, 0, 0.35);
+    --shadow-menu: 0 16px 32px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.4);
+    --shadow-modal: 0 30px 70px rgba(0, 0, 0, 0.6);
 }

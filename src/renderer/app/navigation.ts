@@ -4,6 +4,7 @@ export type NavTarget =
     | { name: "tasks" }
     | { name: "project"; id: string }
     | { name: "activity" }
+    | { name: "archive" }
     | { name: "settings" }
     | { name: "support" }
     | { name: "whats-new" }

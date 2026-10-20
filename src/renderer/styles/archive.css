@@ -1,0 +1,141 @@
+/* Archive page, sidebar add-project button and archive row styling. */
+
+/* ─── Sidebar: add a project straight from the dropdown ─── */
+.sidebar-add-project {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 32px;
+    margin-top: 4px;
+    padding: 0 12px;
+    border-radius: var(--radius-control);
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--accent-purple);
+    transition: background var(--duration-fast) var(--ease-calm);
+}
+
+.sidebar-add-project:hover {
+    background: var(--accent-purple-soft);
+}
+
+/* ─── Archive page ─── */
+.archive-page {
+    max-width: 760px;
+}
+
+.archive-total {
+    flex: 0 0 auto;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: var(--surface-sunken);
+    border: 1px solid var(--line-soft);
+}
+
+.archive-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
+.archive-group {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+.archive-group-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding-left: 2px;
+}
+
+.archive-group-empty {
+    font-size: 12px;
+    color: var(--text-muted);
+    padding: 10px 12px;
+    border-radius: var(--radius-card);
+    border: 1px dashed var(--line);
+}
+
+.archive-list {
+    display: flex;
+    flex-direction: column;
+    padding: 4px;
+}
+
+.archive-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 8px;
+    border-radius: var(--radius-control);
+    transition: background var(--duration-fast) var(--ease-calm);
+}
+
+.archive-row:hover {
+    background: var(--surface-hover);
+}
+
+.archive-row + .archive-row {
+    border-top: 1px solid var(--line-soft);
+}
+
+.archive-row-icon {
+    display: grid;
+    place-items: center;
+    width: 27px;
+    height: 27px;
+    flex: 0 0 auto;
+    border-radius: var(--radius-control);
+    background: var(--accent-purple-soft);
+    color: var(--accent-purple);
+}
+
+.archive-row-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    text-align: left;
+}
+
+.archive-row-title {
+    font-size: 12.8px;
+    font-weight: 500;
+    color: var(--text-strong);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.archive-row-meta {
+    font-size: 10.8px;
+    color: var(--text-muted);
+}
+
+.archive-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+}
+
+@media (max-width: 719px) {
+    .archive-row {
+        flex-wrap: wrap;
+    }
+
+    .archive-row-actions {
+        flex-basis: 100%;
+        justify-content: flex-end;
+    }
+}

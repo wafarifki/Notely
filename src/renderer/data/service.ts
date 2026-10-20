@@ -1,5 +1,3 @@
-import { createId } from "@/lib/ids";
-import { buildSeedData } from "@/db/seed";
 import { activityRepository } from "@/db/activityRepository";
 import {
     applyImport as applyBackup,
@@ -10,7 +8,7 @@ import {
     type ImportMode,
     type ImportPreview
 } from "@/db/backup";
-import { ensureSettings, resetToDemoData, seedIfEmpty, type NotesDatabase } from "@/db/database";
+import { clearWorkspace, ensureSettings, type NotesDatabase } from "@/db/database";
 import { noteRepository, type NoteInput } from "@/db/noteRepository";
 import {
     projectRepository,
@@ -20,9 +18,10 @@ import {
 import { settingsRepository } from "@/db/settingsRepository";
 import { taskRepository, type TaskInput } from "@/db/taskRepository";
 import type { NoteRecord, ProjectRecord, TaskRecord } from "@/db/schema";
+import { htmlToPlainText } from "@/lib/noteContent";
 
 export interface NotesService {
-    initialize(): Promise<boolean>;
+    initialize(): Promise<void>;
     projects: ReturnType<typeof projectRepository>;
     notes: ReturnType<typeof noteRepository>;
     tasks: ReturnType<typeof taskRepository>;
@@ -31,6 +30,9 @@ export interface NotesService {
     createProject(input: ProjectInput): Promise<ProjectRecord>;
     updateProject(id: string, input: ProjectInput): Promise<ProjectRecord>;
     archiveProject(id: string, archived: boolean): Promise<ProjectRecord>;
+    // ─── NEW: notes and tasks can be archived too. ───
+    archiveNote(id: string, archived: boolean): Promise<NoteRecord>;
+    archiveTask(id: string, archived: boolean): Promise<TaskRecord>;
     deleteProject(id: string, strategy: ProjectDeleteStrategy): Promise<void>;
     reorderProjects(orderedIds: string[]): Promise<ProjectRecord[]>;
     createNote(input: NoteInput): Promise<NoteRecord>;
@@ -48,12 +50,14 @@ export interface NotesService {
     exportBackup(): Promise<BackupFile>;
     validateImport(payload: unknown): { backup: BackupFile; preview: ImportPreview };
     applyImport(backup: BackupFile, mode: ImportMode): Promise<void>;
-    restoreDemo(): Promise<void>;
     clearAll(): Promise<void>;
+    // ─── NEW: wipe only the activity log, leaving all content untouched. ───
+    clearActivity(): Promise<void>;
 }
 
 function snippet(text: string, fallback = "Untitled"): string {
-    const cleaned = text.replace(/\s+/g, " ").trim();
+    // ─── NEW: note bodies may be HTML, so strip tags before building a title. ───
+    const cleaned = htmlToPlainText(text).replace(/\s+/g, " ").trim();
     if (!cleaned) return fallback;
     return cleaned.length > 80 ? `${cleaned.slice(0, 77)}...` : cleaned;
 }
@@ -67,9 +71,7 @@ export function createNotesService(db: NotesDatabase): NotesService {
 
     return {
         async initialize() {
-            const seeded = await seedIfEmpty(db);
             await ensureSettings(db);
-            return seeded;
         },
 
         projects,
@@ -80,42 +82,80 @@ export function createNotesService(db: NotesDatabase): NotesService {
 
         async createProject(input) {
             const project = await projects.create(input);
+            // ─── NEW: projects used to omit the actor, so every entry fell back to
+            // the seeded "Nick Woods" demo name. Record the real profile instead. ───
+            const actor = await settings.get();
             await activity.add({
                 kind: "created",
                 entityType: "project",
                 entityId: project.id,
                 title: project.name,
-                projectId: project.id
+                projectId: project.id,
+                actorId: actor.avatarId, actorImage: actor.avatarImage,
+                actorName: actor.displayName
             });
             return project;
         },
 
         async updateProject(id, input) {
             const project = await projects.update(id, input);
+            const actor = await settings.get();
             await activity.add({
                 kind: "updated",
                 entityType: "project",
                 entityId: project.id,
                 title: project.name,
-                projectId: project.id
+                projectId: project.id,
+                actorId: actor.avatarId, actorImage: actor.avatarImage,
+                actorName: actor.displayName
             });
             return project;
         },
 
         async archiveProject(id, archived) {
             const project = await projects.setArchived(id, archived);
+            const actor = await settings.get();
             await activity.add({
                 kind: archived ? "archived" : "updated",
                 entityType: "project",
                 entityId: project.id,
                 title: project.name,
-                projectId: project.id
+                projectId: project.id,
+                actorId: actor.avatarId, actorImage: actor.avatarImage,
+                actorName: actor.displayName
             });
             return project;
         },
 
-        async deleteProject(id, strategy) {
-            const project = await projects.get(id);
+        // ─── NEW: archive a note, keeping its content and tags intact. ───
+        async archiveNote(id, archived) {
+            const note = await notes.setArchived(id, archived);
+            await activity.add({
+                kind: archived ? "archived" : "updated",
+                entityType: "note",
+                entityId: note.id,
+                title: note.title || snippet(note.content),
+                projectId: note.projectId,
+                actorId: (await settings.get()).avatarId, actorImage: (await settings.get()).avatarImage, actorName: (await settings.get()).displayName
+            });
+            return note;
+        },
+
+        // ─── NEW: archive a task, keeping its due date and priority. ───
+        async archiveTask(id, archived) {
+            const task = await tasks.setArchived(id, archived);
+            await activity.add({
+                kind: archived ? "archived" : "updated",
+                entityType: "task",
+                entityId: task.id,
+                title: task.title,
+                projectId: task.projectId,
+                actorId: (await settings.get()).avatarId, actorImage: (await settings.get()).avatarImage, actorName: (await settings.get()).displayName
+            });
+            return task;
+        },
+
+        async deleteProject(id, strategy) {            const project = await projects.get(id);
             const relatedNotes = await db.notes.where("projectId").equals(id).toArray();
             const relatedTasks = await db.tasks.where("projectId").equals(id).toArray();
             await projects.remove(id, strategy);
@@ -133,12 +173,15 @@ export function createNotesService(db: NotesDatabase): NotesService {
                         row.projectId = null;
                     });
             }
+            const actor = await settings.get();
             await activity.add({
                 kind: "deleted",
                 entityType: "project",
                 entityId: null,
                 title: project?.name ?? "Project",
-                projectId: null
+                projectId: null,
+                actorId: actor.avatarId, actorImage: actor.avatarImage,
+                actorName: actor.displayName
             });
         },
 
@@ -154,7 +197,7 @@ export function createNotesService(db: NotesDatabase): NotesService {
                 entityId: note.id,
                 title: note.title || snippet(note.content),
                 projectId: note.projectId,
-                actorName: (await settings.get()).displayName
+                actorId: (await settings.get()).avatarId, actorImage: (await settings.get()).avatarImage, actorName: (await settings.get()).displayName
             });
             return note;
         },
@@ -172,7 +215,7 @@ export function createNotesService(db: NotesDatabase): NotesService {
                 entityId: note.id,
                 title: note.title || snippet(note.content),
                 projectId: note.projectId,
-                actorName: (await settings.get()).displayName
+                actorId: (await settings.get()).avatarId, actorImage: (await settings.get()).avatarImage, actorName: (await settings.get()).displayName
             });
             return note;
         },
@@ -185,7 +228,7 @@ export function createNotesService(db: NotesDatabase): NotesService {
                 entityId: note.id,
                 title: note.title || snippet(note.content),
                 projectId: note.projectId,
-                actorName: (await settings.get()).displayName
+                actorId: (await settings.get()).avatarId, actorImage: (await settings.get()).avatarImage, actorName: (await settings.get()).displayName
             });
             return note;
         },
@@ -198,7 +241,7 @@ export function createNotesService(db: NotesDatabase): NotesService {
                 entityId: note.id,
                 title: note.title || snippet(note.content),
                 projectId: note.projectId,
-                actorName: (await settings.get()).displayName
+                actorId: (await settings.get()).avatarId, actorImage: (await settings.get()).avatarImage, actorName: (await settings.get()).displayName
             });
             return note;
         },
@@ -214,7 +257,7 @@ export function createNotesService(db: NotesDatabase): NotesService {
                     entityId: null,
                     title: note.title || snippet(note.content),
                     projectId: note.projectId,
-                    actorName: (await settings.get()).displayName
+                    actorId: (await settings.get()).avatarId, actorImage: (await settings.get()).avatarImage, actorName: (await settings.get()).displayName
                 });
             }
         },
@@ -231,7 +274,7 @@ export function createNotesService(db: NotesDatabase): NotesService {
                 entityId: task.id,
                 title: task.title,
                 projectId: task.projectId,
-                actorName: (await settings.get()).displayName
+                actorId: (await settings.get()).avatarId, actorImage: (await settings.get()).avatarImage, actorName: (await settings.get()).displayName
             });
             return task;
         },
@@ -244,7 +287,7 @@ export function createNotesService(db: NotesDatabase): NotesService {
                 entityId: task.id,
                 title: task.title,
                 projectId: task.projectId,
-                actorName: (await settings.get()).displayName
+                actorId: (await settings.get()).avatarId, actorImage: (await settings.get()).avatarImage, actorName: (await settings.get()).displayName
             });
             return task;
         },
@@ -261,7 +304,7 @@ export function createNotesService(db: NotesDatabase): NotesService {
                 entityId: task.id,
                 title: task.title,
                 projectId: task.projectId,
-                actorName: (await settings.get()).displayName
+                actorId: (await settings.get()).avatarId, actorImage: (await settings.get()).avatarImage, actorName: (await settings.get()).displayName
             });
             return task;
         },
@@ -278,7 +321,7 @@ export function createNotesService(db: NotesDatabase): NotesService {
                 entityId: task.id,
                 title: task.title,
                 projectId: task.projectId,
-                actorName: (await settings.get()).displayName
+                actorId: (await settings.get()).avatarId, actorImage: (await settings.get()).avatarImage, actorName: (await settings.get()).displayName
             });
             return task;
         },
@@ -294,7 +337,7 @@ export function createNotesService(db: NotesDatabase): NotesService {
                     entityId: null,
                     title: task.title,
                     projectId: task.projectId,
-                    actorName: (await settings.get()).displayName
+                    actorId: (await settings.get()).avatarId, actorImage: (await settings.get()).avatarImage, actorName: (await settings.get()).displayName
                 });
             }
         },
@@ -329,40 +372,17 @@ export function createNotesService(db: NotesDatabase): NotesService {
                     mode === "replace"
                         ? "Restored workspace from backup"
                         : `Merged backup (${preview.projects + preview.notes + preview.tasks} items)`,
-                actorName: (await settings.get()).displayName
+                actorId: (await settings.get()).avatarId, actorImage: (await settings.get()).avatarImage, actorName: (await settings.get()).displayName
             });
         },
 
-        async restoreDemo() {
-            await resetToDemoData(db);
+        async clearAll() {
+            await clearWorkspace(db);
         },
 
-        async clearAll() {
-            const now = new Date().toISOString();
-            const empty = buildSeedData();
-            await db.transaction(
-                "rw",
-                [db.projects, db.notes, db.tasks, db.activity, db.settings],
-                async () => {
-                    await Promise.all([
-                        db.projects.clear(),
-                        db.notes.clear(),
-                        db.tasks.clear(),
-                        db.activity.clear()
-                    ]);
-                    await db.activity.add({
-                        id: createId("activity"),
-                        actorId: "nick-woods",
-                        actorName: (await db.settings.get("app"))?.displayName ?? empty.settings.displayName,
-                        kind: "updated",
-                        entityType: "project",
-                        entityId: null,
-                        title: "Cleared all local data",
-                        projectId: null,
-                        createdAt: now
-                    });
-                }
-            );
+        // ─── NEW: Recent Activity -> "Clear activity". ───
+        async clearActivity() {
+            await activity.clear();
         }
     };
 }

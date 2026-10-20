@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+    Archive,
     Check,
     FolderInput,
     Pencil,
@@ -12,6 +13,7 @@ import {
 import { Popover, PopoverDivider, PopoverItem, PopoverLabel } from "@/components/Popover";
 import type { NoteRecord, ProjectRecord } from "@/db/schema";
 import { sortProjects } from "@/db/schema";
+import { useI18n } from "@/i18n";
 
 export interface NoteMenuActions {
     onOpen(): void;
@@ -20,6 +22,8 @@ export interface NoteMenuActions {
     onMove(projectId: string | null): void;
     onSelectTag(tag: string): void;
     onDelete(): void;
+    // ─── NEW: archive the note without deleting it. ───
+    onArchive(): void;
 }
 
 export function NoteMenu({
@@ -39,6 +43,7 @@ export function NoteMenu({
 }) {
     const [showMove, setShowMove] = useState(false);
     const moveTriggerRef = useRef<HTMLButtonElement>(null);
+    const { t } = useI18n();
 
     useEffect(() => {
         if (!open) setShowMove(false);
@@ -52,15 +57,15 @@ export function NoteMenu({
     const activeProjects = sortProjects(projects.filter((project) => !project.archived));
 
     return (
-        <Popover open={open} anchor={anchor} onClose={onClose} label="Note actions" width={224}>
+        <Popover open={open} anchor={anchor} onClose={onClose} label={t("noteMenu.label")} width={224}>
             {showMove ? (
                 <>
-                    <PopoverLabel>Move to</PopoverLabel>
+                    <PopoverLabel>{t("noteMenu.moveTo")}</PopoverLabel>
                     <PopoverItem
                         onSelect={run(() => actions.onMove(null))}
                         checked={note.projectId === null}
                     >
-                        Unassigned
+                        {t("common.unassigned")}
                     </PopoverItem>
                     {activeProjects.map((project) => (
                         <PopoverItem
@@ -79,13 +84,13 @@ export function NoteMenu({
                             setShowMove(false);
                         }}
                     >
-                        Back
+                        {t("common.back")}
                     </PopoverItem>
                 </>
             ) : (
                 <>
                     <PopoverItem onSelect={run(actions.onOpen)} icon={<Pencil size={14} strokeWidth={1.8} />}>
-                        Edit note
+                        {t("noteMenu.edit")}
                     </PopoverItem>
                     <button
                         ref={moveTriggerRef}
@@ -97,24 +102,24 @@ export function NoteMenu({
                         <span className="popover-item-icon">
                             <FolderInput size={14} strokeWidth={1.8} />
                         </span>
-                        <span className="popover-item-label">Move to project</span>
+                        <span className="popover-item-label">{t("noteMenu.moveToProject")}</span>
                     </button>
                     <PopoverItem
                         onSelect={run(actions.onTogglePin)}
                         icon={note.pinned ? <PinOff size={14} strokeWidth={1.8} /> : <Pin size={14} strokeWidth={1.8} />}
                     >
-                        {note.pinned ? "Unpin note" : "Pin note"}
+                        {note.pinned ? t("noteMenu.unpin") : t("noteMenu.pin")}
                     </PopoverItem>
                     <PopoverItem
                         onSelect={run(actions.onToggleFavorite)}
                         icon={note.favorite ? <StarOff size={14} strokeWidth={1.8} /> : <Star size={14} strokeWidth={1.8} />}
                     >
-                        {note.favorite ? "Remove favorite" : "Add to favorites"}
+                        {note.favorite ? t("noteMenu.removeFavorite") : t("noteMenu.addFavorite")}
                     </PopoverItem>
                     {note.tags.length > 0 ? (
                         <>
                             <PopoverDivider />
-                            <PopoverLabel>Filter by tag</PopoverLabel>
+                            <PopoverLabel>{t("noteMenu.filterByTag")}</PopoverLabel>
                             {note.tags.map((tag) => (
                                 <PopoverItem
                                     key={tag}
@@ -127,8 +132,11 @@ export function NoteMenu({
                         </>
                     ) : null}
                     <PopoverDivider />
+                    <PopoverItem onSelect={run(actions.onArchive)} icon={<Archive size={14} strokeWidth={1.8} />}>
+                        {t("common.archiveNote")}
+                    </PopoverItem>
                     <PopoverItem onSelect={run(actions.onDelete)} icon={<Trash2 size={14} strokeWidth={1.8} />} danger>
-                        Delete note
+                        {t("noteMenu.delete")}
                     </PopoverItem>
                 </>
             )}

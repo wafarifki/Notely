@@ -16,6 +16,8 @@ export function activityRepository(db: NotesDatabase) {
                 id: `activity-${crypto.randomUUID()}`,
                 actorId: input.actorId ?? NICK_DEFAULT_ACTOR.id,
                 actorName: input.actorName ?? NICK_DEFAULT_ACTOR.name,
+                // ─── NEW: persist the actor's uploaded photo, if any. ───
+                actorImage: input.actorImage ?? null,
                 kind: input.kind,
                 entityType: input.entityType,
                 entityId: input.entityId,
@@ -39,6 +41,12 @@ export function activityRepository(db: NotesDatabase) {
         async removeMany(entityIds: string[]): Promise<void> {
             if (entityIds.length === 0) return;
             await db.activity.where("entityId").anyOf(entityIds).delete();
+        },
+
+        // ─── NEW: the Recent Activity page can wipe the whole history without
+        // touching projects, notes or tasks. ───
+        async clear(): Promise<void> {
+            await db.activity.clear();
         }
     };
 }

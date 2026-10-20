@@ -1,4 +1,5 @@
 import type { ProjectRecord } from "@/db/schema";
+import { useI18n } from "@/i18n";
 import { FolderCard } from "./FolderCard";
 
 export function ProjectShowcase({
@@ -8,6 +9,7 @@ export function ProjectShowcase({
     projects: ProjectRecord[];
     onOpen: (project: ProjectRecord) => void;
 }) {
+    const { t } = useI18n();
     const lifted = projects[2];
 
     if (!lifted) {
@@ -25,7 +27,7 @@ export function ProjectShowcase({
                     {index === 2 ? (
                         <>
                             <div className="drop-slot drop-slot-showcase" aria-hidden="true" />
-                            <FolderCard project={project} elevated dragMode slotLabel="Drop here" />
+                            <FolderCard project={project} elevated dragMode slotLabel={t("project.dropHere")} />
                         </>
                     ) : (
                         <FolderCard

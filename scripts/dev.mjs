@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
@@ -57,7 +57,11 @@ async function main() {
     const electronProcess = run(electronBinary, ["."], { VITE_DEV_SERVER_URL: "http://localhost:5391" });
 
     const shutdown = (code = 0) => {
-        devServer.kill();
+        if (process.platform === "win32") {
+            spawnSync("taskkill", ["/PID", String(devServer.pid), "/T", "/F"], { stdio: "ignore" });
+        } else {
+            devServer.kill();
+        }
         electronProcess.kill();
         process.exit(code);
     };

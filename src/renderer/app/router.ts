@@ -7,6 +7,7 @@ export type Route =
     | { name: "tasks" }
     | { name: "project"; id: string }
     | { name: "activity" }
+    | { name: "archive" }
     | { name: "settings" }
     | { name: "support" }
     | { name: "whats-new" }
@@ -40,6 +41,8 @@ export function routeToHash(route: Route): string {
             return `#/projects/${encodeSegment(route.id)}`;
         case "activity":
             return "#/activity";
+        case "archive":
+            return "#/archive";
         case "settings":
             return "#/settings";
         case "support":
@@ -70,6 +73,8 @@ export function parseHash(hash: string): Route {
             return segments[1] ? { name: "project", id: segments[1] } : { name: "notes" };
         case "activity":
             return { name: "activity" };
+        case "archive":
+            return { name: "archive" };
         case "settings":
             return { name: "settings" };
         case "support":

@@ -4,31 +4,49 @@ import { EmptyState } from "@/components/EmptyState";
 import { SectionHeader } from "@/components/SectionHeader";
 import type { ActivityRecord } from "@/db/schema";
 import { formatFullDate } from "@/lib/dates";
+import { useI18n } from "@/i18n";
+import type { TranslationKey } from "@/i18n/translations";
 
-export function activityDescription(activity: ActivityRecord): string {
+// ─── NEW: activity sentences are built from translation keys so they read
+// naturally in both languages instead of being hardcoded English verbs. ───
+export function activityDescription(
+    activity: ActivityRecord,
+    t: (key: TranslationKey, values?: Record<string, string | number>) => string
+): string {
+    const title = { title: activity.title, type: activity.entityType };
+    // ─── NEW: the noun itself is translated too, so the sentence reads
+    // "membuat proyek “X”" instead of mixing languages. ───
+    const typeLabel = t(
+        activity.entityType === "project"
+            ? "activity.typeProject"
+            : activity.entityType === "task"
+              ? "activity.typeTask"
+              : "activity.typeNote"
+    );
+    const created = { title: activity.title, type: typeLabel };
     switch (activity.kind) {
         case "created":
-            return `created ${activity.entityType} “${activity.title}”`;
+            return t("activity.created", created);
         case "updated":
             return activity.entityType === "project"
-                ? `updated project “${activity.title}”`
+                ? t("activity.updatedProject", title)
                 : activity.entityType === "task"
-                  ? `edited task “${activity.title}”`
-                  : activity.title;
+                  ? t("activity.updatedTask", title)
+                  : t("activity.updatedNote", title);
         case "completed":
-            return `completed “${activity.title}”`;
+            return t("activity.completed", title);
         case "reopened":
-            return `reopened “${activity.title}”`;
+            return t("activity.reopened", title);
         case "moved":
-            return `moved “${activity.title}”`;
+            return t("activity.moved", title);
         case "archived":
-            return `archived “${activity.title}”`;
+            return t("activity.archived", title);
         case "deleted":
-            return `deleted “${activity.title}”`;
+            return t("activity.deleted", created);
         case "favorited":
-            return `starred “${activity.title}”`;
+            return t("activity.favorited", title);
         case "pinned":
-            return `pinned “${activity.title}”`;
+            return t("activity.pinned", title);
         default:
             return activity.title;
     }
@@ -41,7 +59,9 @@ export function ActivityRow({
     activity: ActivityRecord;
     onOpen?: (activity: ActivityRecord) => void;
 }) {
+    const { t, language } = useI18n();
     const clickable = Boolean(onOpen && activity.entityId);
+    const description = activityDescription(activity, t);
     return (
         <li className="activity-row">
             <button
@@ -49,16 +69,16 @@ export function ActivityRow({
                 className="activity-row-button"
                 onClick={() => clickable && onOpen?.(activity)}
                 disabled={!clickable}
-                title={clickable ? "Open related item" : "Related item no longer exists"}
+                title={clickable ? t("activity.openRelated") : t("activity.relatedGone")}
             >
-                <Avatar id={activity.actorId} name={activity.actorName} size={34} />
+                <Avatar id={activity.actorId} name={activity.actorName} size={34} image={activity.actorImage ?? null} />
                 <span className="activity-row-text">
                     <span className="activity-actor">{activity.actorName}</span>
-                    <span className="activity-detail" title={activityDescription(activity)}>
-                        {activityDescription(activity)}
+                    <span className="activity-detail" title={description}>
+                        {description}
                     </span>
                 </span>
-                <span className="activity-date">{formatFullDate(activity.createdAt)}</span>
+                <span className="activity-date">{formatFullDate(activity.createdAt, language)}</span>
             </button>
         </li>
     );
@@ -75,16 +95,17 @@ export function ActivityPanel({
     limit?: number;
     className?: string;
 }) {
+    const { t } = useI18n();
     const visible = activity.slice(0, limit);
     return (
         <section className={`dashboard-section activity-section ${className}`.trim()}>
-            <SectionHeader icon={Clock3} title="Recent activity" />
+            <SectionHeader icon={Clock3} title={t("activity.recent")} />
             <div className="panel activity-panel">
                 {visible.length === 0 ? (
                     <EmptyState
                         icon={Clock3}
-                        title="No activity yet"
-                        description="Changes you make to notes, tasks and projects will show up here."
+                        title={t("activity.emptyTitle")}
+                        description={t("activity.emptyText")}
                         compact
                     />
                 ) : (
