@@ -66,6 +66,28 @@ export function settingsRepository(db: NotesDatabase) {
             }
             const next = { ...current, ...patch, id: "app" as const };
             await db.settings.put(next);
+
+            // ─── NEW: keep the activity history in step with the profile. ───
+            // Every activity row stores a snapshot of the actor's name and
+            // photo at the time it was written. Without this, changing the
+            // display name or the profile picture left the whole history
+            // showing the previous identity. Rewriting the snapshots in the
+            // same transaction keeps the stored data consistent with what the
+            // UI renders (the UI also reads live settings as a safety net).
+            const identityChanged =
+                next.displayName !== current.displayName ||
+                next.avatarId !== current.avatarId ||
+                next.avatarImage !== current.avatarImage;
+            if (identityChanged) {
+                await db.activity
+                    .toCollection()
+                    .modify((row) => {
+                        row.actorName = next.displayName;
+                        row.actorId = next.avatarId;
+                        row.actorImage = next.avatarImage ?? null;
+                    });
+            }
+
             return next;
         }
     };

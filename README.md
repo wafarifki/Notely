@@ -238,9 +238,7 @@ Build output lands in `release/`:
 
 ```
 release/
-├── Notely Setup 1.0.0.exe          # NSIS installer
-├── Notely-1.0.0-x64-portable.exe   # portable executable
-└── win-unpacked/Notely.exe         # unpacked build
+└── Notely Setup 1.0.1.exe          # NSIS installer
 ```
 
 ### `npm ci` fails with `EPERM: unlink ... rollup.win32-x64-msvc.node`

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, nativeTheme, screen, shell } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, screen, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -381,6 +381,58 @@ function registerLaunchBridge() {
         if (typeof filePath !== "string") return null;
         // Imported lazily so the parse/convert helpers stay out of startup.
         return readDocument(filePath);
+    });
+
+    // ─── NEW: exporting a note to disk ───
+    // The renderer builds the file text (it owns the note HTML); the main
+    // process owns the save dialog and the write, because only it can touch
+    // the filesystem. `canceled` is a normal outcome, not an error.
+    ipcMain.handle("app:save-export", async (event, payload: unknown) => {
+        const data = payload as { fileName?: unknown; body?: unknown } | null;
+        if (!data || typeof data.fileName !== "string" || typeof data.body !== "string") {
+            return { ok: false, canceled: false, reason: "invalid-payload" };
+        }
+        const window = BrowserWindow.fromWebContents(event.sender);
+        const extension = path.extname(data.fileName).replace(".", "").toLowerCase() || "txt";
+        const { canceled, filePath } = await dialog.showSaveDialog(window ?? undefined!, {
+            title: "Export note",
+            defaultPath: path.join(app.getPath("documents"), data.fileName),
+            filters: [
+                extension === "md"
+                    ? { name: "Markdown", extensions: ["md"] }
+                    : { name: "Text", extensions: ["txt"] }
+            ]
+        });
+        if (canceled || !filePath) return { ok: false, canceled: true };
+
+        try {
+            // ─── NEW: a leading BOM makes Windows Notepad read the file as
+            // UTF-8 instead of ANSI, which otherwise mangles accents and
+            // emoji in exported notes. Markdown editors tolerate it. ───
+            const withBom = `\uFEFF${data.body}`;
+            fs.writeFileSync(filePath, withBom, "utf8");
+            // Offer the result straight away, the same as the TXT shortcut.
+            shell.showItemInFolder(filePath);
+            return { ok: true, canceled: false, filePath };
+        } catch (error) {
+            return { ok: false, canceled: false, reason: error instanceof Error ? error.message : "write-failed" };
+        }
+    });
+
+    // ─── NEW: clipboard writes ───
+    // Copying rich text needs Electron's clipboard, which is not available in
+    // the sandboxed renderer. The renderer sends both representations so the
+    // paste target can choose: formatted apps take the HTML, code editors take
+    // the plain text.
+    ipcMain.handle("app:copy-note", (_event, payload: unknown) => {
+        const data = payload as { text?: unknown; html?: unknown } | null;
+        if (!data || typeof data.text !== "string") return false;
+        if (typeof data.html === "string" && data.html) {
+            clipboard.write({ text: data.text, html: data.html });
+        } else {
+            clipboard.writeText(data.text);
+        }
+        return true;
     });
 }
 

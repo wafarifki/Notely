@@ -2,13 +2,28 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 // ─── OLD CODE (kept for reference) ───
 // import { ArrowLeft, Check, List as ListIcon, ListOrdered, MoreHorizontal, Pin, Save, Star, Trash2 } from "lucide-react";
 // ─── NEW: ListIcon/ListOrdered moved into RichTextEditor's toolbar. ───
-import { ArrowLeft, Check, MoreHorizontal, Pin, Save, Star, Trash2 } from "lucide-react";
+import {
+    ArrowLeft,
+    Check,
+    ClipboardCopy,
+    Download,
+    FileText,
+    Link2,
+    MoreHorizontal,
+    Pin,
+    Save,
+    Star,
+    Trash2
+} from "lucide-react";
 import { describeError, useStore } from "@/app/store";
-import { Popover, PopoverDivider, PopoverItem } from "@/components/Popover";
+import { Popover, PopoverDivider, PopoverItem, PopoverLabel } from "@/components/Popover";
 import { EmptyState } from "@/components/EmptyState";
+import { useToast } from "@/components/Toasts";
 import type { NoteRecord } from "@/db/schema";
 import { formatFullDate } from "@/lib/dates";
-import { sanitizeNoteHtml } from "@/lib/noteContent";
+import { htmlToPlainText, sanitizeNoteHtml } from "@/lib/noteContent";
+import { buildNoteExport, htmlToMarkdown } from "@/lib/noteExport";
+import { getDesktopBridge } from "@/platform/desktop";
 import { useWorkflows } from "@/feature-hooks";
 import { useI18n } from "@/i18n";
 import { TagChip } from "./TagChip";
@@ -108,6 +123,7 @@ function NoteEditor({
 }) {
     const [draft, setDraft] = useState<Draft>(() => draftFromNote(note));
     const { t, language } = useI18n();
+    const toast = useToast();
     const [saveState, setSaveState] = useState<SaveState>("idle");
     const [saveError, setSaveError] = useState<string | null>(null);
     const [tagInput, setTagInput] = useState("");
@@ -119,8 +135,87 @@ function NoteEditor({
     const timerRef = useRef<number | null>(null);
     const draftRef = useRef(draft);
     draftRef.current = draft;
+    // ─── NEW: guards the export/copy buttons while the native dialog is open,
+    // so a double click cannot spawn two save dialogs. ───
+    const [busy, setBusy] = useState(false);
 
     const activeProjects = useMemo(() => projects.filter((project) => !project.archived), [projects]);
+
+    /**
+     * ─── NEW: export the note ───
+     * The unsaved draft is used, not the stored copy, so what the user sees is
+     * what ends up in the file even if the debounced autosave has not fired.
+     */
+    const exportNote = useCallback(
+        async (format: "markdown" | "text") => {
+            const bridge = getDesktopBridge();
+            const values = draftRef.current;
+            const fallback = t("common.untitledNote");
+            const { fileName, body } = buildNoteExport(values, format, fallback);
+
+            if (!bridge) {
+                // Browser preview has no save dialog: hand the text to the OS
+                // download flow instead so the action is never a dead end.
+                const blob = new Blob([body], { type: format === "markdown" ? "text/markdown" : "text/plain" });
+                const url = URL.createObjectURL(blob);
+                const anchor = document.createElement("a");
+                anchor.href = url;
+                anchor.download = fileName;
+                anchor.click();
+                URL.revokeObjectURL(url);
+                return;
+            }
+
+            setBusy(true);
+            try {
+                const result = await bridge.saveExport(fileName, body);
+                if (result.ok) toast.success(t("toast.noteExported"));
+                else if (!result.canceled) toast.error(t("toast.noteExportFailed"));
+            } catch (error) {
+                toast.error(describeError(error));
+            } finally {
+                setBusy(false);
+            }
+        },
+        [t, toast]
+    );
+
+    /** ─── NEW: put the note on the clipboard in the requested flavour. */
+    const copyNote = useCallback(
+        async (format: "rich" | "markdown" | "text" | "link") => {
+            const bridge = getDesktopBridge();
+            const values = draftRef.current;
+            const url = `#/notes/${note.id}`;
+
+            let text: string;
+            let html: string | undefined;
+            if (format === "markdown") {
+                text = htmlToMarkdown(values.content);
+            } else if (format === "text") {
+                text = htmlToPlainText(values.content);
+            } else if (format === "link") {
+                text = url;
+            } else {
+                // Rich: keep the formatting for Word/Docs, plain text for the
+                // fallback target. The title is included so the paste is useful
+                // on its own.
+                text = `${values.title}\n\n${htmlToPlainText(values.content)}`.trim();
+                html = `<h1>${values.title || ""}</h1>${sanitizeNoteHtml(values.content)}`;
+            }
+
+            try {
+                if (bridge) {
+                    await bridge.copyNote(text, html);
+                } else {
+                    await navigator.clipboard.writeText(text);
+                }
+                toast.success(t("toast.noteCopied"));
+            } catch (error) {
+                toast.error(describeError(error));
+            }
+        },
+        [note.id, t, toast]
+    );
 
     const saveNow = useCallback(
         async (values: Draft) => {
@@ -414,6 +509,64 @@ function NoteEditor({
             </div>
 
             <Popover open={menuOpen} anchor={menuAnchor} onClose={() => setMenuOpen(false)} label={t("noteMenu.label")}>
+                {/* ─── NEW: export the note as Markdown or plain text. ─── */}
+                <PopoverLabel>{t("noteMenu.export")}</PopoverLabel>
+                <PopoverItem
+                    icon={<Download size={14} strokeWidth={1.8} />}
+                    onSelect={() => {
+                        if (busy) return;
+                        setMenuOpen(false);
+                        void exportNote("markdown");
+                    }}
+                >
+                    {t("noteMenu.exportMarkdown")}
+                </PopoverItem>
+                <PopoverItem
+                    icon={<FileText size={14} strokeWidth={1.8} />}
+                    onSelect={() => {
+                        if (busy) return;
+                        setMenuOpen(false);
+                        void exportNote("text");
+                    }}
+                >
+                    {t("noteMenu.exportText")}
+                </PopoverItem>
+                <PopoverDivider />
+
+                {/* ─── NEW: copy the note in the format the paste target needs. ─── */}
+                <PopoverLabel>{t("noteMenu.copy")}</PopoverLabel>
+                <PopoverItem
+                    icon={<ClipboardCopy size={14} strokeWidth={1.8} />}
+                    onSelect={() => {
+                        setMenuOpen(false);
+                        void copyNote("rich");
+                    }}
+                >
+                    {t("noteMenu.copyRichText")}
+                </PopoverItem>
+                <PopoverItem
+                    icon={<ClipboardCopy size={14} strokeWidth={1.8} />}
+                    onSelect={() => {
+                        setMenuOpen(false);
+                        void copyNote("markdown");
+                    }}
+                >
+                    {t("noteMenu.copyMarkdown")}
+                </PopoverItem>
+                <PopoverItem onSelect={() => { setMenuOpen(false); void copyNote("text"); }}>
+                    {t("noteMenu.copyText")}
+                </PopoverItem>
+                <PopoverItem
+                    icon={<Link2 size={14} strokeWidth={1.8} />}
+                    onSelect={() => {
+                        setMenuOpen(false);
+                        void copyNote("link");
+                    }}
+                >
+                    {t("noteMenu.copyLink")}
+                </PopoverItem>
+                <PopoverDivider />
+
                 <PopoverItem
                     danger
                     icon={<Trash2 size={14} strokeWidth={1.8} />}
@@ -424,7 +577,6 @@ function NoteEditor({
                 >
                     {t("noteMenu.delete")}
                 </PopoverItem>
-                <PopoverDivider />
                 <PopoverItem onSelect={() => { setMenuOpen(false); titleRef.current?.focus(); }}>
                     {t("note.editTitle")}
                 </PopoverItem>

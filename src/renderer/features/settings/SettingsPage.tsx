@@ -488,7 +488,7 @@ export function SettingsPage() {
                 <dl className="about-list">
                     <div>
                         <dt>{t("about.version")}</dt>
-                        <dd>1.0.0</dd>
+                        <dd>1.0.1</dd>
                     </div>
                     <div>
                         <dt>{t("about.license")}</dt>

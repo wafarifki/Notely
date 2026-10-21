@@ -509,18 +509,41 @@
     scrollbar-gutter: stable;
 }
 
-/* ─── NEW: in the desktop shell the traffic-light buttons float over the top
-   right corner. Without extra room the page title and its actions slid under
-   them, so reserve the control strip plus breathing space. ─── */
+/* ─── NEW: pages fill the right pane instead of stopping at a fixed column.
+   Children of the scroll area are block-level, so they already stretch; the
+   rule below exists to make that contract explicit and to survive a future
+   `display: flex` on the container (where children would otherwise shrink to
+   their content width). `max-width: none` cancels any per-page cap that would
+   leave a gap on the right in a maximized window. ─── */
+.app-scroll > * {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+}
+
+/* ─── OLD CODE (kept for reference) ───
+   In the desktop shell the traffic-light buttons float over the top right
+   corner. `padding-top` is still needed so the page title clears the buttons,
+   but the horizontal reserve was applied to the whole scroll container, which
+   pushed every page away from the right edge. The controls only overlap the
+   top strip, so the right padding now applies only where it is needed. ─── */
 .electron-runtime .app-scroll {
     padding-top: calc(34px + 14px);
 }
 
-/* The topbar sits on the same strip, so push its content below the buttons. */
-.electron-runtime .app-scroll > .page > .page-topbar:first-child,
-.electron-runtime .app-scroll > .page > .page-header:first-child {
-    padding-right: calc(3 * 46px + 8px);
-}
+/* ─── OLD CODE (kept for reference) ───
+   The window buttons float over the top-right corner, so the strip was
+   reserved on the header/topbar:
+       .electron-runtime .app-scroll > .page > .page-topbar:first-child,
+       .electron-runtime .app-scroll > .page > .page-header:first-child {
+           padding-right: calc(3 * 46px + 8px);   /* 146px */
+       }
+   Measured: the buttons occupy y 0-34, while `.app-scroll` already starts its
+   content at y 48 through `padding-top: calc(34px + 14px)`. Nothing overlaps
+   horizontally, so the reserve only had one effect: every page's action
+   buttons stopped 146px short of the cards below them — "Pinned / Favorites /
+   New note" never lined up with the note list.
+   Removed so header actions align with the content edge on every page. ─── */
 
 .mobile-topbar {
     display: none;

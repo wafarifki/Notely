@@ -68,7 +68,7 @@ export function WhatsNewPage() {
     return (
         <InfoShell icon={Gift} title={t("info.whatsNewTitle")} intro={t("info.whatsNewIntro")}>
             <section className="panel info-card">
-                <h2>{t("info.version", { version: "1.0.0" })}</h2>
+                <h2>{t("info.version", { version: "1.0.1" })}</h2>
                 <ul className="info-list">
                     <li>{t("info.whatsNew.item1")}</li>
                     <li>{t("info.whatsNew.item2")}</li>

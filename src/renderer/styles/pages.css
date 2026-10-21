@@ -241,7 +241,11 @@
     display: flex;
     flex-direction: column;
     gap: 14px;
-    max-width: 860px;
+    /* ─── OLD CODE (kept for reference) ───
+       max-width: 860px;
+       A narrow fixed column left the editor stranded in the middle of a
+       maximized window. The writing surface now uses the available width so
+       the layout visibly tracks the window. ─── */
     width: 100%;
 }
 
@@ -589,7 +593,12 @@
 }
 
 .settings-page {
-    max-width: 760px;
+    /* ─── OLD CODE (kept for reference) ───
+       max-width: 760px;
+       A fixed 760px column left a large empty strip on the right of a
+       maximized window. Settings now uses the full width of the right pane;
+       the section panels keep their own comfortable paddings. ─── */
+    width: 100%;
 }
 
 .settings-section {

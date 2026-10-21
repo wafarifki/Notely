@@ -302,6 +302,18 @@ const en = {
     "noteMenu.removeFavorite": "Remove favorite",
     "noteMenu.filterByTag": "Filter by tag",
     "noteMenu.delete": "Delete note",
+    // ─── NEW: export, copy and permanent delete from the note menu. ───
+    "noteMenu.export": "Export note",
+    "noteMenu.exportMarkdown": "as Markdown (.md)",
+    "noteMenu.exportText": "as Plain text (.txt)",
+    "noteMenu.copy": "Copy note",
+    "noteMenu.copyMarkdown": "Copy as Markdown",
+    "noteMenu.copyText": "Copy as plain text",
+    "noteMenu.copyRichText": "Copy with formatting",
+    "noteMenu.copyLink": "Copy note link",
+    "noteMenu.deletePermanent": "Delete permanently",
+    "noteMenu.deletePermanentHint": "This cannot be undone.",
+    "noteMenu.undo": "Undo delete",
     "noteCard.actionsFor": "Note actions for {title}",
     "noteCard.open": "Open note: {title}",
     "noteCard.pinned": "Pinned",
@@ -489,6 +501,10 @@ const en = {
 
     // ── Toasts ──
     "toast.noteCreated": "Note created.",
+    // ─── NEW: export and copy results ───
+    "toast.noteExported": "Note exported.",
+    "toast.noteExportFailed": "The note could not be exported.",
+    "toast.noteCopied": "Copied to the clipboard.",
     // ─── NEW: a `.txt` / `.md` opened through Windows ───
     "toast.fileImported": "File opened in a new note.",
     "toast.fileRefreshed": "Note refreshed from the file.",
@@ -913,6 +929,18 @@ const id: Dictionary = {
     "noteMenu.removeFavorite": "Hapus favorit",
     "noteMenu.filterByTag": "Filter berdasarkan tag",
     "noteMenu.delete": "Hapus catatan",
+    // ─── NEW: ekspor, salin dan hapus permanen dari menu catatan. ───
+    "noteMenu.export": "Ekspor catatan",
+    "noteMenu.exportMarkdown": "sebagai Markdown (.md)",
+    "noteMenu.exportText": "sebagai teks biasa (.txt)",
+    "noteMenu.copy": "Salin catatan",
+    "noteMenu.copyMarkdown": "Salin sebagai Markdown",
+    "noteMenu.copyText": "Salin sebagai teks biasa",
+    "noteMenu.copyRichText": "Salin dengan format",
+    "noteMenu.copyLink": "Salin tautan catatan",
+    "noteMenu.deletePermanent": "Hapus permanen",
+    "noteMenu.deletePermanentHint": "Tindakan ini tidak bisa dibatalkan.",
+    "noteMenu.undo": "Batalkan penghapusan",
     "noteCard.actionsFor": "Aksi catatan untuk {title}",
     "noteCard.open": "Buka catatan: {title}",
     "noteCard.pinned": "Disematkan",
@@ -1100,6 +1128,10 @@ const id: Dictionary = {
 
     // ── Toasts ──
     "toast.noteCreated": "Catatan dibuat.",
+    // ─── NEW: hasil ekspor dan salin ───
+    "toast.noteExported": "Catatan diekspor.",
+    "toast.noteExportFailed": "Catatan gagal diekspor.",
+    "toast.noteCopied": "Disalin ke clipboard.",
     // ─── NEW: a `.txt` / `.md` opened through Windows ───
     "toast.fileImported": "File dibuka di catatan baru.",
     "toast.fileRefreshed": "Catatan diperbarui dari file.",

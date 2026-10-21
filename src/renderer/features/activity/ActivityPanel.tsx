@@ -2,6 +2,7 @@ import { Clock3 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { EmptyState } from "@/components/EmptyState";
 import { SectionHeader } from "@/components/SectionHeader";
+import { useStore } from "@/app/store";
 import type { ActivityRecord } from "@/db/schema";
 import { formatFullDate } from "@/lib/dates";
 import { useI18n } from "@/i18n";
@@ -60,8 +61,24 @@ export function ActivityRow({
     onOpen?: (activity: ActivityRecord) => void;
 }) {
     const { t, language } = useI18n();
+    const { settings } = useStore();
     const clickable = Boolean(onOpen && activity.entityId);
     const description = activityDescription(activity, t);
+
+    // ─── NEW: resolve the actor against the current profile. ───
+    // `activity.actorName` / `actorImage` are a snapshot taken when the row was
+    // written, so changing the display name or photo in Settings left every
+    // existing history entry showing the old identity. Notely is a single-user
+    // local app — every activity row was written by the profile that owns this
+    // workspace — so the live settings are the correct source for the actor.
+    //
+    // ─── OLD CODE (kept for reference) ───
+    // const actor = activity.actorId === settings.avatarId ? {...} : {...};
+    // Matching on `avatarId` broke as soon as the user picked a different
+    // preset avatar, because old rows kept the previous id.
+    const actorName = settings.displayName || activity.actorName;
+    const actorImage = settings.avatarImage ?? null;
+
     return (
         <li className="activity-row">
             <button
@@ -71,9 +88,14 @@ export function ActivityRow({
                 disabled={!clickable}
                 title={clickable ? t("activity.openRelated") : t("activity.relatedGone")}
             >
-                <Avatar id={activity.actorId} name={activity.actorName} size={34} image={activity.actorImage ?? null} />
+                <Avatar
+                    id={settings.avatarId || activity.actorId}
+                    name={actorName}
+                    size={34}
+                    image={actorImage}
+                />
                 <span className="activity-row-text">
-                    <span className="activity-actor">{activity.actorName}</span>
+                    <span className="activity-actor">{actorName}</span>
                     <span className="activity-detail" title={description}>
                         {description}
                     </span>

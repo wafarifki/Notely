@@ -61,7 +61,22 @@ const desktopBridge = {
     openDefaultApps: (extension: string) => ipcRenderer.invoke("app:open-default-apps", extension) as Promise<boolean>,
 
     /** Raise the native "Open with" chooser for a file. */
-    openWith: (filePath: string) => ipcRenderer.invoke("app:open-with", filePath) as Promise<boolean>
+    openWith: (filePath: string) => ipcRenderer.invoke("app:open-with", filePath) as Promise<boolean>,
+
+    // ─── NEW: exporting and copying notes ───
+
+    /** Show a Save dialog and write `body` to the chosen file. */
+    saveExport: (fileName: string, body: string) =>
+        ipcRenderer.invoke("app:save-export", { fileName, body }) as Promise<{
+            ok: boolean;
+            canceled: boolean;
+            filePath?: string;
+            reason?: string;
+        }>,
+
+    /** Put text (and optionally rich HTML) on the system clipboard. */
+    copyNote: (text: string, html?: string) =>
+        ipcRenderer.invoke("app:copy-note", { text, html }) as Promise<boolean>
 };
 
 contextBridge.exposeInMainWorld("notesDesktop", desktopBridge);

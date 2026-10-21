@@ -37,6 +37,12 @@ export interface DesktopBridge {
     // needs the user to confirm once in Settings or "Open with". ───
     openDefaultApps(extension: string): Promise<boolean>;
     openWith(filePath: string): Promise<boolean>;
+    // ─── NEW: export and copy ───
+    saveExport(
+        fileName: string,
+        body: string
+    ): Promise<{ ok: boolean; canceled: boolean; filePath?: string; reason?: string }>;
+    copyNote(text: string, html?: string): Promise<boolean>;
 }
 
 declare global {

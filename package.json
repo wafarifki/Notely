@@ -1,7 +1,7 @@
 {
     "name": "notely",
     "productName": "Notely",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Notely is local-first desktop app for projects, notes and tasks. Offline, private, built with Electron + React + TypeScript.",
     "author": {
         "name": "Notely"

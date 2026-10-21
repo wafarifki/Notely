@@ -145,6 +145,9 @@ export function RichTextEditor({
     const { t } = useI18n();
     const editorRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    // ─── NEW: the whole editor card (toolbar + body). Used to decide whether a
+    // mousedown is "inside" when dismissing the image selection. ───
+    const rootRef = useRef<HTMLDivElement>(null);
     // ─── OLD CODE (kept for reference) ───
     // const lastValueRef = useRef<string>(value);
     // ─── NEW: seeding this with `value` meant the first effect saw
@@ -218,7 +221,27 @@ export function RichTextEditor({
     // ─── NEW: clicking outside the editor drops the image selection. ───
     useEffect(() => {
         const handlePointerDown = (event: MouseEvent) => {
-            if (editorRef.current && event.target instanceof Node && editorRef.current.contains(event.target)) return;
+            const target = event.target;
+            // ─── OLD CODE (kept for reference) ───
+            // if (editorRef.current && event.target instanceof Node && editorRef.current.contains(event.target)) return;
+            // setSelectedImage(null);
+            //
+            // That only exempted the editable body. The image controls live in
+            // the toolbar, which sits *outside* `.rte-content`, so pressing
+            // "smaller", "larger", "align" or "delete" cleared `selectedImage`
+            // on mousedown — before the click handler could use it. The style
+            // change often still applied (it reads the DOM node), but the
+            // toolbar vanished and delete had nothing left to act on, which is
+            // exactly the "nothing happens and the option closes" symptom.
+            //
+            // ─── NEW: treat the whole editor card (toolbar included) as inside,
+            // and also ignore clicks on a portalled popover, so only a real
+            // click elsewhere dismisses the selection. ───
+            if (target instanceof Node) {
+                if (rootRef.current?.contains(target)) return;
+                // The image menu can be rendered in a portal outside the card.
+                if (target instanceof Element && target.closest(".popover")) return;
+            }
             setSelectedImage(null);
         };
         document.addEventListener("mousedown", handlePointerDown);
@@ -387,7 +410,7 @@ export function RichTextEditor({
     ];
 
     return (
-        <div className="rte">
+        <div className="rte" ref={rootRef}>
             {linkOpen ? (
                 <div className="rte-link-row">
                     <input

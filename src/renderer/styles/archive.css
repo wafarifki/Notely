@@ -22,7 +22,11 @@
 
 /* ─── Archive page ─── */
 .archive-page {
-    max-width: 760px;
+    /* ─── OLD CODE (kept for reference) ───
+       max-width: 760px;
+       Capped the archive to a narrow column, which looked like the layout had
+       stopped following the window. Rows now span the full right pane. ─── */
+    width: 100%;
 }
 
 .archive-total {
