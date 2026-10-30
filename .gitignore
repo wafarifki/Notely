@@ -14,7 +14,8 @@ release/
 coverage/
 _screenshots/
 _analysis/
-tests/
+# ─── NEW: tests/ is tracked now — GitHub Actions runs `npm test`, so the
+# test suite must ship with the repository. ───
 
 # Playwright browser binaries and reports
 .playwright/
