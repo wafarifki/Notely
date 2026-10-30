@@ -1,4 +1,4 @@
-import { MoreHorizontal, Pin, Star } from "lucide-react";
+import { Check, MoreHorizontal, Pin, Star } from "lucide-react";
 import type { NoteRecord, ProjectRecord } from "@/db/schema";
 import { formatFullDate } from "@/lib/dates";
 // ─── NEW: note bodies are HTML now, so the excerpt strips markup first. ───
@@ -23,6 +23,9 @@ export function NoteCard({
     elevated,
     menuOpen,
     draggable,
+    selectMode,
+    selected,
+    onToggleSelect,
     onOpen,
     onMenu,
     onSelectTag,
@@ -43,6 +46,10 @@ export function NoteCard({
     elevated?: boolean;
     menuOpen?: boolean;
     draggable?: boolean;
+    // ─── NEW: multi-select mode turns the card into a pick target. ───
+    selectMode?: boolean;
+    selected?: boolean;
+    onToggleSelect?: () => void;
     onOpen?: () => void;
     onMenu?: (anchor: HTMLElement) => void;
     onSelectTag?: (tag: string) => void;
@@ -66,6 +73,8 @@ export function NoteCard({
         dragging ? "is-dragging" : "",
         elevated ? "is-elevated" : "",
         menuOpen ? "is-menu-open" : "",
+        selectMode ? "is-selectable" : "",
+        selected ? "is-selected" : "",
         className
     ]
         .filter(Boolean)
@@ -106,6 +115,20 @@ export function NoteCard({
             under short notes. ─── */}
             <div className="note-card-top">
                 <div className="note-card-flags">
+                    {selectMode ? (
+                        <button
+                            type="button"
+                            className={`note-card-select${selected ? " is-checked" : ""}`}
+                            aria-pressed={selected}
+                            aria-label={t("noteCard.selectAria", { title: noteTitle })}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onToggleSelect?.();
+                            }}
+                        >
+                            {selected ? <Check size={11} strokeWidth={3} /> : null}
+                        </button>
+                    ) : null}
                     {note.pinned ? (
                         <span className="note-card-flag" title={t("noteCard.pinned")}>
                             <Pin size={10} strokeWidth={2.2} />
@@ -120,22 +143,24 @@ export function NoteCard({
                     ) : null}
                 </div>
                 <span className="note-card-date">{date ?? formatFullDate(note.createdAt, language)}</span>
-                <button
-                    type="button"
-                    className="card-menu-button note-card-menu"
-                    aria-label={t("noteCard.actionsFor", { title: noteTitle })}
-                    aria-haspopup="menu"
-                    aria-expanded={menuOpen ? "true" : "false"}
-                    onClick={(event) => onMenu?.(event.currentTarget)}
-                >
-                    <MoreHorizontal size={15} strokeWidth={2} />
-                </button>
+                {!selectMode ? (
+                    <button
+                        type="button"
+                        className="card-menu-button note-card-menu"
+                        aria-label={t("noteCard.actionsFor", { title: noteTitle })}
+                        aria-haspopup="menu"
+                        aria-expanded={menuOpen ? "true" : "false"}
+                        onClick={(event) => onMenu?.(event.currentTarget)}
+                    >
+                        <MoreHorizontal size={15} strokeWidth={2} />
+                    </button>
+                ) : null}
             </div>
             <button
                 type="button"
                 className="note-card-body"
                 aria-label={t("noteCard.open", { title: noteTitle })}
-                onClick={() => onOpen?.()}
+                onClick={() => (selectMode ? onToggleSelect?.() : onOpen?.())}
             >
                 <h3 className="note-card-title">{noteTitle}</h3>
                 {hasBody ? <p className="note-card-excerpt">{preview}</p> : null}

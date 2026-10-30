@@ -210,6 +210,11 @@ export function noteRepository(db: NotesDatabase) {
 
         async remove(id: string): Promise<void> {
             await db.notes.delete(id);
+        },
+
+        // ─── NEW: bulk delete from the multi-select mode. ───
+        async removeMany(ids: string[]): Promise<void> {
+            await db.notes.bulkDelete(ids);
         }
     };
 }

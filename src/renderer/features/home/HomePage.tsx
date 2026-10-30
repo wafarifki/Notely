@@ -4,6 +4,7 @@ import { useStore } from "@/app/store";
 import { splitDashboardTasks } from "@/app/tasks";
 import { EmptyState } from "@/components/EmptyState";
 import { SectionHeader } from "@/components/SectionHeader";
+import { SelectionBar } from "@/components/SelectionBar";
 import { sortProjects, type ProjectRecord } from "@/db/schema";
 import { useWorkflows } from "@/feature-hooks";
 import { useUiActions } from "@/app/ui";
@@ -108,6 +109,9 @@ export function HomePage() {
     const workflows = useWorkflows();
     const wideLayout = useWideLayout();
     const { t } = useI18n();
+    // ─── NEW: multi-select mode for bulk-deleting projects from the dashboard. ───
+    const [projectSelectMode, setProjectSelectMode] = useState(false);
+    const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(new Set());
 
     const activeProjects = useMemo(() => sortProjects(projects.filter((project) => !project.archived)), [projects]);
     // ─── NEW: archived notes and tasks stay out of the dashboard columns. ───
@@ -126,6 +130,48 @@ export function HomePage() {
         activeNotes.length === 0 &&
         activeTasks.length === 0 &&
         activity.length === 0;
+
+    // ─── NEW: selection helpers. The set is pruned when projects change so
+    // entries deleted elsewhere never inflate the "N selected" counter. ───
+    useEffect(() => {
+        setSelectedProjectIds((current) => {
+            const next = new Set([...current].filter((id) => projects.some((project) => project.id === id)));
+            return next.size === current.size ? current : next;
+        });
+    }, [projects]);
+
+    const selectedProjects = useMemo(
+        () => projects.filter((project) => selectedProjectIds.has(project.id)),
+        [projects, selectedProjectIds]
+    );
+    const allProjectsSelected =
+        activeProjects.length > 0 && activeProjects.every((project) => selectedProjectIds.has(project.id));
+
+    function toggleProjectSelectMode() {
+        setProjectSelectMode((current) => !current);
+        setSelectedProjectIds(new Set());
+    }
+
+    function toggleProjectSelected(project: ProjectRecord) {
+        setSelectedProjectIds((current) => {
+            const next = new Set(current);
+            if (next.has(project.id)) next.delete(project.id);
+            else next.add(project.id);
+            return next;
+        });
+    }
+
+    function toggleAllProjects() {
+        setSelectedProjectIds((current) => {
+            const next = new Set(current);
+            if (activeProjects.length > 0 && activeProjects.every((project) => next.has(project.id))) {
+                activeProjects.forEach((project) => next.delete(project.id));
+            } else {
+                activeProjects.forEach((project) => next.add(project.id));
+            }
+            return next;
+        });
+    }
 
     if (!ready) {
         return (
@@ -179,16 +225,41 @@ export function HomePage() {
                             icon={FolderClosed}
                             title={t("home.myProjects")}
                             action={
-                                <button
-                                    type="button"
-                                    className="text-action"
-                                    onClick={() => workflows.openProjectDialog({ mode: "create" })}
-                                >
-                                    <Plus size={13} strokeWidth={2} aria-hidden="true" />
-                                    {t("common.new")}
-                                </button>
+                                projectSelectMode ? undefined : (
+                                    <div className="section-header-actions">
+                                        <button
+                                            type="button"
+                                            className="text-action"
+                                            onClick={toggleProjectSelectMode}
+                                            disabled={activeProjects.length === 0}
+                                        >
+                                            <ListChecks size={13} strokeWidth={2} aria-hidden="true" />
+                                            {t("common.selectItems")}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="text-action"
+                                            onClick={() => workflows.openProjectDialog({ mode: "create" })}
+                                        >
+                                            <Plus size={13} strokeWidth={2} aria-hidden="true" />
+                                            {t("common.new")}
+                                        </button>
+                                    </div>
+                                )
                             }
                         />
+                        {projectSelectMode ? (
+                            <SelectionBar
+                                count={selectedProjects.length}
+                                total={activeProjects.length}
+                                allSelected={allProjectsSelected}
+                                onToggleAll={toggleAllProjects}
+                                onDelete={() =>
+                                    workflows.requestDeleteProjects(selectedProjects.map((project) => project.id))
+                                }
+                                onExit={toggleProjectSelectMode}
+                            />
+                        ) : null}
                         {activeProjects.length === 0 ? (
                             <div className="panel" data-tour="projects-empty">
                                 <EmptyState
@@ -212,7 +283,12 @@ export function HomePage() {
                                     projects={activeProjects}
                                     handlers={gridHandlers}
                                     dragEnabled={wideLayout}
-                                    limit={5}
+                                    // ─── NEW: selecting must reach every project,
+                                    // not just the five shown on the dashboard. ───
+                                    limit={projectSelectMode ? undefined : 5}
+                                    selectMode={projectSelectMode}
+                                    selectedIds={selectedProjectIds}
+                                    onToggleSelect={toggleProjectSelected}
                                 />
                             </div>
                         )}

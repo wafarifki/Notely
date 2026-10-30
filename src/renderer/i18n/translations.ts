@@ -191,6 +191,15 @@ const en = {
     "common.deleteNote": "Delete note",
     "common.archived": "Archived",
     "common.showMore": "Show more",
+    // ─── NEW: multi-select mode. ───
+    "common.selectItems": "Select",
+    "common.selectedCount": "{count} selected",
+    "common.selectAll": "Select all",
+    "common.clearSelection": "Clear selection",
+    "common.deleteSelected": "Delete selected",
+    "common.exitSelection": "Exit selection",
+    "common.selectionToolbar": "Selection actions",
+    "common.selectModeHint": "Click items to select them.",
 
     // ── Home dashboard ──
     "home.welcomeBack": "Welcome back, {name}!",
@@ -316,6 +325,8 @@ const en = {
     "noteMenu.undo": "Undo delete",
     "noteCard.actionsFor": "Note actions for {title}",
     "noteCard.open": "Open note: {title}",
+    // ─── NEW: multi-select mode. ───
+    "noteCard.selectAria": "Select note “{title}”",
     "noteCard.pinned": "Pinned",
     "noteCard.favorite": "Favorite",
     "noteCard.noTags": "No tags",
@@ -373,6 +384,8 @@ const en = {
     "task.removeFavorite": "Remove {title} from favorites",
     "task.actionsFor": "Task actions for {title}",
     "task.overdueSuffix": " (overdue)",
+    // ─── NEW: multi-select mode. ───
+    "task.selectAria": "Select task “{title}”",
 
     // ── Due dates ──
     "date.noDue": "No due date",
@@ -394,6 +407,8 @@ const en = {
     "project.menuLabel": "Project actions",
     "project.actionsFor": "Project actions for {name}",
     "project.cardRole": "Project card",
+    // ─── NEW: multi-select mode. ───
+    "project.selectAria": "Select project “{name}”",
     "project.dropHere": "Drop project here",
     "project.edit": "Edit project",
     "project.newNoteHere": "New note here",
@@ -437,6 +452,11 @@ const en = {
     "projectDialog.deleteFailed": "Could not delete the project.",
     "projectDialog.deleteTitle": "Delete project?",
     "projectDialog.deleteBody": "{name} will be removed from your workspace. This cannot be undone.",
+    // ─── NEW: plural forms for multi-select bulk delete. ───
+    "projectDialog.deleteTitlePlural": "Delete {count} projects?",
+    "projectDialog.deleteBodyPlural": "These {count} projects will be removed from your workspace. This cannot be undone.",
+    "projectDialog.hasItemsPlural": "These {count} projects contain {notes} and {tasks}. Choose what happens to them.",
+    "projectDialog.noItemsPlural": "These projects have no notes or tasks attached.",
     "projectDialog.hasItems": "This project contains {notes} and {tasks}. Choose what happens to them.",
     "projectDialog.noItems": "This project has no notes or tasks attached.",
     "projectDialog.strategyLabel": "What to do with related items",
@@ -457,9 +477,16 @@ const en = {
     "delete.title": "Delete {subject}?",
     "delete.body": "This will permanently remove the {subject} from your local workspace. This cannot be undone.",
     "delete.noteDetail": "“{title}” will be removed.",
+    // ─── NEW: plural forms for multi-select bulk delete. ───
+    "delete.countTitle": "Delete {count} {subject}?",
+    "delete.countBody": "This will permanently remove {count} {subject} from your local workspace. This cannot be undone.",
+    "delete.moreCount": "+{count} more",
     "subject.note": "note",
     "subject.task": "task",
     "subject.project": "project",
+    "subject.notePlural": "notes",
+    "subject.taskPlural": "tasks",
+    "subject.projectPlural": "projects",
 
     // ── Activity ──
     "activity.recent": "Recent activity",
@@ -510,6 +537,7 @@ const en = {
     "toast.fileRefreshed": "Note refreshed from the file.",
     "toast.fileUnreadable": "This file could not be opened.",
     "toast.noteDeleted": "Note deleted.",
+    "toast.notesDeleted": "{count} notes deleted.",
     "toast.noteMoved": "Note moved.",
     "toast.noteMovedUnassigned": "Note moved to Unassigned.",
     "toast.notePinned": "Note pinned.",
@@ -520,9 +548,11 @@ const en = {
     "toast.projectUpdated": "Project updated.",
     "toast.projectDeleted": "Project deleted.",
     "toast.projectDeletedUnassigned": "Project deleted. Items moved to Unassigned.",
+    "toast.projectsDeleted": "{count} projects deleted.",
     "toast.taskCreated": "Task created.",
     "toast.taskUpdated": "Task updated.",
     "toast.taskDeleted": "Task deleted.",
+    "toast.tasksDeleted": "{count} tasks deleted.",
     "toast.noteArchived": "Note archived.",
     "toast.noteRestored": "Note restored.",
     "toast.taskArchived": "Task archived.",
@@ -818,6 +848,15 @@ const id: Dictionary = {
     "common.deleteNote": "Hapus catatan",
     "common.archived": "Diarsipkan",
     "common.showMore": "Tampilkan lebih banyak",
+    // ─── NEW: multi-select mode. ───
+    "common.selectItems": "Pilih",
+    "common.selectedCount": "{count} dipilih",
+    "common.selectAll": "Pilih semua",
+    "common.clearSelection": "Hapus pilihan",
+    "common.deleteSelected": "Hapus terpilih",
+    "common.exitSelection": "Keluar dari pemilihan",
+    "common.selectionToolbar": "Aksi pilihan",
+    "common.selectModeHint": "Klik item untuk memilihnya.",
 
     // ── Home dashboard ──
     "home.welcomeBack": "Selamat datang kembali, {name}!",
@@ -943,6 +982,8 @@ const id: Dictionary = {
     "noteMenu.undo": "Batalkan penghapusan",
     "noteCard.actionsFor": "Aksi catatan untuk {title}",
     "noteCard.open": "Buka catatan: {title}",
+    // ─── NEW: multi-select mode. ───
+    "noteCard.selectAria": "Pilih catatan “{title}”",
     "noteCard.pinned": "Disematkan",
     "noteCard.favorite": "Favorit",
     "noteCard.noTags": "Tanpa tag",
@@ -1000,6 +1041,8 @@ const id: Dictionary = {
     "task.removeFavorite": "Hapus {title} dari favorit",
     "task.actionsFor": "Aksi tugas untuk {title}",
     "task.overdueSuffix": " (terlambat)",
+    // ─── NEW: multi-select mode. ───
+    "task.selectAria": "Pilih tugas “{title}”",
 
     // ── Due dates ──
     "date.noDue": "Tanpa tenggat",
@@ -1021,6 +1064,8 @@ const id: Dictionary = {
     "project.menuLabel": "Aksi proyek",
     "project.actionsFor": "Aksi proyek untuk {name}",
     "project.cardRole": "Kartu proyek",
+    // ─── NEW: multi-select mode. ───
+    "project.selectAria": "Pilih proyek “{name}”",
     "project.dropHere": "Letakkan proyek di sini",
     "project.edit": "Edit proyek",
     "project.newNoteHere": "Catatan baru di sini",
@@ -1064,6 +1109,11 @@ const id: Dictionary = {
     "projectDialog.deleteFailed": "Gagal menghapus proyek.",
     "projectDialog.deleteTitle": "Hapus proyek?",
     "projectDialog.deleteBody": "{name} akan dihapus dari ruang kerja Anda. Tindakan ini tidak dapat dibatalkan.",
+    // ─── NEW: plural forms for multi-select bulk delete. ───
+    "projectDialog.deleteTitlePlural": "Hapus {count} proyek?",
+    "projectDialog.deleteBodyPlural": "{count} proyek ini akan dihapus dari ruang kerja Anda. Tindakan ini tidak dapat dibatalkan.",
+    "projectDialog.hasItemsPlural": "{count} proyek ini berisi {notes} dan {tasks}. Tentukan apa yang terjadi padanya.",
+    "projectDialog.noItemsPlural": "Proyek-proyek ini tidak memiliki catatan atau tugas terkait.",
     "projectDialog.hasItems": "Proyek ini berisi {notes} dan {tasks}. Pilih apa yang terjadi pada item tersebut.",
     "projectDialog.noItems": "Proyek ini tidak memiliki catatan atau tugas.",
     "projectDialog.strategyLabel": "Apa yang dilakukan dengan item terkait",
@@ -1084,9 +1134,16 @@ const id: Dictionary = {
     "delete.title": "Hapus {subject}?",
     "delete.body": "Ini akan menghapus {subject} secara permanen dari ruang kerja lokal Anda. Tindakan ini tidak dapat dibatalkan.",
     "delete.noteDetail": "“{title}” akan dihapus.",
+    // ─── NEW: plural forms for multi-select bulk delete. ───
+    "delete.countTitle": "Hapus {count} {subject}?",
+    "delete.countBody": "Ini akan menghapus {count} {subject} secara permanen dari ruang kerja lokal Anda. Tindakan ini tidak dapat dibatalkan.",
+    "delete.moreCount": "+{count} lainnya",
     "subject.note": "catatan",
     "subject.task": "tugas",
     "subject.project": "proyek",
+    "subject.notePlural": "catatan",
+    "subject.taskPlural": "tugas",
+    "subject.projectPlural": "proyek",
 
     // ── Activity ──
     "activity.recent": "Aktivitas terbaru",
@@ -1137,6 +1194,7 @@ const id: Dictionary = {
     "toast.fileRefreshed": "Catatan diperbarui dari file.",
     "toast.fileUnreadable": "File ini tidak bisa dibuka.",
     "toast.noteDeleted": "Catatan dihapus.",
+    "toast.notesDeleted": "{count} catatan dihapus.",
     "toast.noteMoved": "Catatan dipindahkan.",
     "toast.noteMovedUnassigned": "Catatan dipindahkan ke Tanpa proyek.",
     "toast.notePinned": "Catatan disematkan.",
@@ -1147,9 +1205,11 @@ const id: Dictionary = {
     "toast.projectUpdated": "Proyek diperbarui.",
     "toast.projectDeleted": "Proyek dihapus.",
     "toast.projectDeletedUnassigned": "Proyek dihapus. Item dipindahkan ke Tanpa proyek.",
+    "toast.projectsDeleted": "{count} proyek dihapus.",
     "toast.taskCreated": "Tugas dibuat.",
     "toast.taskUpdated": "Tugas diperbarui.",
     "toast.taskDeleted": "Tugas dihapus.",
+    "toast.tasksDeleted": "{count} tugas dihapus.",
     "toast.noteArchived": "Catatan diarsipkan.",
     "toast.noteRestored": "Catatan dipulihkan.",
     "toast.taskArchived": "Tugas diarsipkan.",

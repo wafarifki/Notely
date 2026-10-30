@@ -84,7 +84,12 @@ export function TaskList({
     // ─── NEW: rows rendered straight inside a panel (project page) need their
     // own vertical padding, otherwise the first and last row touch the border. ───
     padded,
-    projectNames
+    projectNames,
+    // ─── NEW: multi-select mode swaps the leading checkbox for a selection one
+    // and makes the row title toggle selection instead of opening the dialog. ───
+    selectMode,
+    selectedIds,
+    onToggleSelect
 }: {
     tasks: TaskRecord[];
     handlers: TaskRowHandlers;
@@ -94,6 +99,9 @@ export function TaskList({
     showProjectName?: boolean;
     padded?: boolean;
     projectNames?: Map<string, string>;
+    selectMode?: boolean;
+    selectedIds?: Set<string>;
+    onToggleSelect?: (task: TaskRecord) => void;
 }) {
     const { t } = useI18n();
     // ─── NEW: the inline menu is owned here so every task list gets the same
@@ -113,8 +121,25 @@ export function TaskList({
                 // ─── NEW: surface checklist progress next to the due label. ───
                 const checklist = task.checklist ?? [];
                 const checklistDone = checklist.filter((item) => item.done).length;
+                const selected = selectMode && selectedIds?.has(task.id) === true;
                 return (
-                    <li key={task.id} className={`task-row${task.completed ? " is-completed" : ""}`}>
+                    <li
+                        key={task.id}
+                        className={`task-row${task.completed ? " is-completed" : ""}${selectMode ? " is-selectable" : ""}${selected ? " is-selected" : ""}`}
+                    >
+                        {selectMode ? (
+                            <label className={`row-select${selected ? " is-checked" : ""}`}>
+                                <input
+                                    type="checkbox"
+                                    checked={selected}
+                                    onChange={() => onToggleSelect?.(task)}
+                                    aria-label={t("task.selectAria", { title: task.title })}
+                                />
+                                <span className="row-select-box" aria-hidden="true">
+                                    {selected ? <Check size={11} strokeWidth={3} /> : null}
+                                </span>
+                            </label>
+                        ) : null}
                         <TaskCheckbox
                             checked={task.completed}
                             label={task.title}
@@ -124,7 +149,7 @@ export function TaskList({
                             <button
                                 type="button"
                                 className="task-row-title"
-                                onClick={() => handlers.onOpen?.(task)}
+                                onClick={() => (selectMode ? onToggleSelect?.(task) : handlers.onOpen?.(task))}
                                 title={task.title}
                             >
                                 {task.title}
@@ -146,12 +171,14 @@ export function TaskList({
                                 ) : null}
                             </span>
                         </div>
-                        <StarButton
-                            active={task.favorite}
-                            label={task.title}
-                            onClick={() => handlers.onToggleFavorite(task)}
-                        />
-                        {showMenu ? (
+                        {selectMode ? null : (
+                            <StarButton
+                                active={task.favorite}
+                                label={task.title}
+                                onClick={() => handlers.onToggleFavorite(task)}
+                            />
+                        )}
+                        {showMenu && !selectMode ? (
                             <button
                                 type="button"
                                 className="card-menu-button task-row-menu"

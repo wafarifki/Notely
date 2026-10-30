@@ -190,6 +190,11 @@ export function taskRepository(db: NotesDatabase) {
 
         async remove(id: string): Promise<void> {
             await db.tasks.delete(id);
+        },
+
+        // ─── NEW: bulk delete from the multi-select mode. ───
+        async removeMany(ids: string[]): Promise<void> {
+            await db.tasks.bulkDelete(ids);
         }
     };
 }

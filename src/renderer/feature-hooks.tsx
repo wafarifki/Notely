@@ -13,11 +13,15 @@ export interface AppWorkflows {
     openSearch(): void;
     openProjectDialog(request: ProjectDialogRequest): void;
     requestDeleteProject(projectId: string): void;
+    // ─── NEW: multi-select bulk delete. ───
+    requestDeleteProjects(projectIds: string[]): void;
     toggleProjectArchive(projectId: string): void;
     openNote(noteId: string, options?: { focusTitle?: boolean }): void;
     createNote(options?: { projectId?: string | null; open?: boolean }): Promise<NoteRecord | null>;
     openNoteDialog(note: NoteRecord): void;
     requestDeleteNote(note: NoteRecord): void;
+    // ─── NEW: multi-select bulk delete. ───
+    requestDeleteNotes(notes: NoteRecord[]): void;
     // ─── NEW: notes and tasks can be archived instead of deleted. ───
     archiveNote(note: NoteRecord, archived: boolean): void;
     archiveTask(task: TaskRecord, archived: boolean): void;
@@ -25,6 +29,8 @@ export interface AppWorkflows {
     moveNote(note: NoteRecord, projectId: string | null): void;
     openTaskDialog(task?: TaskRecord | null, defaultProjectId?: string | null): void;
     requestDeleteTask(task: TaskRecord): void;
+    // ─── NEW: multi-select bulk delete. ───
+    requestDeleteTasks(tasks: TaskRecord[]): void;
     toggleTask(task: TaskRecord): void;
     toggleTaskFavorite(task: TaskRecord): void;
     reorderTasks(orderedIds: string[]): void;

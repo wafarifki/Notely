@@ -47,12 +47,16 @@ export interface NotesService {
     toggleNoteFlag(id: string, flag: "pinned" | "favorite"): Promise<NoteRecord>;
     moveNote(id: string, projectId: string | null): Promise<NoteRecord>;
     deleteNote(id: string): Promise<void>;
+    // ─── NEW: bulk delete from the multi-select mode. ───
+    deleteNotes(ids: string[]): Promise<void>;
     reorderNotes(orderedIds: string[]): Promise<NoteRecord[]>;
     createTask(input: TaskInput): Promise<TaskRecord>;
     updateTask(id: string, input: TaskInput): Promise<TaskRecord>;
     toggleTaskComplete(id: string): Promise<TaskRecord>;
     toggleTaskFavorite(id: string): Promise<TaskRecord>;
     deleteTask(id: string): Promise<void>;
+    deleteTasks(ids: string[]): Promise<void>;
+    deleteProjects(ids: string[], strategy: ProjectDeleteStrategy): Promise<void>;
     reorderTasks(orderedIds: string[]): Promise<TaskRecord[]>;
     exportBackup(): Promise<BackupFile>;
     validateImport(payload: unknown): { backup: BackupFile; preview: ImportPreview };
@@ -75,6 +79,78 @@ export function createNotesService(db: NotesDatabase): NotesService {
     const tasks = taskRepository(db);
     const settings = settingsRepository(db);
     const activity = activityRepository(db);
+
+    // ─── NEW: shared delete loops so the single-item paths and the multi-select
+    // bulk paths produce exactly the same records and activity entries. ───
+    async function deleteNotesByIds(ids: string[]) {
+        for (const id of ids) {
+            const note = await notes.get(id);
+            await notes.remove(id);
+            await activity.removeForEntity(id);
+            if (note) {
+                const actor = await settings.get();
+                await activity.add({
+                    kind: "deleted",
+                    entityType: "note",
+                    entityId: null,
+                    title: note.title || snippet(note.content),
+                    projectId: note.projectId,
+                    actorId: actor.avatarId, actorImage: actor.avatarImage, actorName: actor.displayName
+                });
+            }
+        }
+    }
+
+    async function deleteTasksByIds(ids: string[]) {
+        for (const id of ids) {
+            const task = await tasks.get(id);
+            await tasks.remove(id);
+            await activity.removeForEntity(id);
+            if (task) {
+                const actor = await settings.get();
+                await activity.add({
+                    kind: "deleted",
+                    entityType: "task",
+                    entityId: null,
+                    title: task.title,
+                    projectId: task.projectId,
+                    actorId: actor.avatarId, actorImage: actor.avatarImage, actorName: actor.displayName
+                });
+            }
+        }
+    }
+
+    async function deleteProjectsByIds(ids: string[], strategy: ProjectDeleteStrategy) {
+        for (const id of ids) {
+            const project = await projects.get(id);
+            const relatedNotes = await db.notes.where("projectId").equals(id).toArray();
+            const relatedTasks = await db.tasks.where("projectId").equals(id).toArray();
+            await projects.remove(id, strategy);
+            if (strategy === "delete") {
+                await activity.removeMany([
+                    id,
+                    ...relatedNotes.map((note) => note.id),
+                    ...relatedTasks.map((task) => task.id)
+                ]);
+            } else {
+                await db.activity
+                    .where("entityId")
+                    .equals(id)
+                    .modify((row) => {
+                        row.projectId = null;
+                    });
+            }
+            const actor = await settings.get();
+            await activity.add({
+                kind: "deleted",
+                entityType: "project",
+                entityId: null,
+                title: project?.name ?? "Project",
+                projectId: null,
+                actorId: actor.avatarId, actorImage: actor.avatarImage, actorName: actor.displayName
+            });
+        }
+    }
 
     return {
         async initialize() {
@@ -162,34 +238,13 @@ export function createNotesService(db: NotesDatabase): NotesService {
             return task;
         },
 
-        async deleteProject(id, strategy) {            const project = await projects.get(id);
-            const relatedNotes = await db.notes.where("projectId").equals(id).toArray();
-            const relatedTasks = await db.tasks.where("projectId").equals(id).toArray();
-            await projects.remove(id, strategy);
-            if (strategy === "delete") {
-                await activity.removeMany([
-                    id,
-                    ...relatedNotes.map((note) => note.id),
-                    ...relatedTasks.map((task) => task.id)
-                ]);
-            } else {
-                await db.activity
-                    .where("entityId")
-                    .equals(id)
-                    .modify((row) => {
-                        row.projectId = null;
-                    });
-            }
-            const actor = await settings.get();
-            await activity.add({
-                kind: "deleted",
-                entityType: "project",
-                entityId: null,
-                title: project?.name ?? "Project",
-                projectId: null,
-                actorId: actor.avatarId, actorImage: actor.avatarImage,
-                actorName: actor.displayName
-            });
+        async deleteProject(id, strategy) {
+            await deleteProjectsByIds([id], strategy);
+        },
+
+        // ─── NEW: bulk delete from the multi-select mode. ───
+        async deleteProjects(ids, strategy) {
+            await deleteProjectsByIds(ids, strategy);
         },
 
         async reorderProjects(orderedIds) {
@@ -254,19 +309,12 @@ export function createNotesService(db: NotesDatabase): NotesService {
         },
 
         async deleteNote(id) {
-            const note = await notes.get(id);
-            await notes.remove(id);
-            await activity.removeForEntity(id);
-            if (note) {
-                await activity.add({
-                    kind: "deleted",
-                    entityType: "note",
-                    entityId: null,
-                    title: note.title || snippet(note.content),
-                    projectId: note.projectId,
-                    actorId: (await settings.get()).avatarId, actorImage: (await settings.get()).avatarImage, actorName: (await settings.get()).displayName
-                });
-            }
+            await deleteNotesByIds([id]);
+        },
+
+        // ─── NEW: bulk delete from the multi-select mode. ───
+        async deleteNotes(ids) {
+            await deleteNotesByIds(ids);
         },
 
         async reorderNotes(orderedIds) {
@@ -350,19 +398,12 @@ export function createNotesService(db: NotesDatabase): NotesService {
         },
 
         async deleteTask(id) {
-            const task = await tasks.get(id);
-            await tasks.remove(id);
-            await activity.removeForEntity(id);
-            if (task) {
-                await activity.add({
-                    kind: "deleted",
-                    entityType: "task",
-                    entityId: null,
-                    title: task.title,
-                    projectId: task.projectId,
-                    actorId: (await settings.get()).avatarId, actorImage: (await settings.get()).avatarImage, actorName: (await settings.get()).displayName
-                });
-            }
+            await deleteTasksByIds([id]);
+        },
+
+        // ─── NEW: bulk delete from the multi-select mode. ───
+        async deleteTasks(ids) {
+            await deleteTasksByIds(ids);
         },
 
         async reorderTasks(orderedIds) {

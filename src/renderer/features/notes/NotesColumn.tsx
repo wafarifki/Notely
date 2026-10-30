@@ -25,7 +25,11 @@ export function NotesColumn({
     limit = 4,
     dragEnabled = false,
     className = "",
-    showcase = false
+    showcase = false,
+    // ─── NEW: multi-select mode for bulk delete. ───
+    selectMode = false,
+    selectedIds,
+    onToggleSelect
 }: {
     notes: NoteRecord[];
     projects: ProjectRecord[];
@@ -34,6 +38,9 @@ export function NotesColumn({
     dragEnabled?: boolean;
     className?: string;
     showcase?: boolean;
+    selectMode?: boolean;
+    selectedIds?: Set<string>;
+    onToggleSelect?: (note: NoteRecord) => void;
 }) {
     const projectMap = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
     const ordered = useMemo(() => sortNotes(notes), [notes]);
@@ -101,12 +108,15 @@ export function NotesColumn({
                     <NoteCard
                         note={note}
                         project={note.projectId ? projectMap.get(note.projectId) : undefined}
-                        draggable={dragEnabled}
+                        draggable={dragEnabled && !selectMode}
                         elevated={showcase && index === 2}
                         dragMode={showcase && index === 2}
                         dragging={draggingId === note.id}
                         menuOpen={menuNoteId === note.id}
                         className={targetIndex === index && draggingId ? "is-drag-origin" : ""}
+                        selectMode={selectMode}
+                        selected={selectedIds?.has(note.id) === true}
+                        onToggleSelect={() => onToggleSelect?.(note)}
                         onOpen={() => handlers.onOpen(note)}
                         onMenu={(anchor) => {
                             if (menuNoteId === note.id) {

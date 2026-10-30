@@ -5,12 +5,14 @@ import type { ProjectRecord } from "@/db/schema";
 import { useI18n } from "@/i18n";
 
 export function DeleteProjectDialog({
-    project,
+    projects,
     relationCounts,
     onClose,
     onConfirm
 }: {
-    project: ProjectRecord | null;
+    // ─── NEW: accepts several projects so multi-select bulk delete reuses the
+    // same strategy choice (keep or delete the related notes/tasks). ───
+    projects: ProjectRecord[];
     relationCounts: { notes: number; tasks: number };
     onClose: () => void;
     onConfirm: (strategy: ProjectDeleteStrategy) => Promise<void> | void;
@@ -20,12 +22,15 @@ export function DeleteProjectDialog({
     const [error, setError] = useState<string | null>(null);
     const { t } = useI18n();
 
+    const open = projects.length > 0;
+    const bulk = projects.length > 1;
+
     useEffect(() => {
-        if (!project) return;
+        if (!open) return;
         setStrategy("unassign");
         setBusy(false);
         setError(null);
-    }, [project]);
+    }, [open, projects]);
 
     const totalItems = relationCounts.notes + relationCounts.tasks;
     const notesLabel = relationCounts.notes === 1
@@ -48,9 +53,9 @@ export function DeleteProjectDialog({
 
     return (
         <Modal
-            open={Boolean(project)}
+            open={open}
             size="small"
-            title={t("projectDialog.deleteTitle")}
+            title={bulk ? t("projectDialog.deleteTitlePlural", { count: projects.length }) : t("projectDialog.deleteTitle")}
             onClose={onClose}
             footer={
                 <>
@@ -64,11 +69,17 @@ export function DeleteProjectDialog({
             }
         >
             <div className="confirm-body">
-                <p>{t("projectDialog.deleteBody", { name: project?.name ?? "" })}</p>
+                <p>
+                    {bulk
+                        ? t("projectDialog.deleteBodyPlural", { count: projects.length })
+                        : t("projectDialog.deleteBody", { name: projects[0]?.name ?? "" })}
+                </p>
                 {totalItems > 0 ? (
                     <>
                         <p className="confirm-muted">
-                            {t("projectDialog.hasItems", { notes: notesLabel, tasks: tasksLabel })}
+                            {bulk
+                                ? t("projectDialog.hasItemsPlural", { count: projects.length, notes: notesLabel, tasks: tasksLabel })
+                                : t("projectDialog.hasItems", { notes: notesLabel, tasks: tasksLabel })}
                         </p>
                         <div className="choice-list" role="radiogroup" aria-label={t("projectDialog.strategyLabel")}>
                             <label className={`choice${strategy === "unassign" ? " is-selected" : ""}`}>
@@ -102,7 +113,9 @@ export function DeleteProjectDialog({
                         </div>
                     </>
                 ) : (
-                    <p className="confirm-muted">{t("projectDialog.noItems")}</p>
+                    <p className="confirm-muted">
+                        {bulk ? t("projectDialog.noItemsPlural") : t("projectDialog.noItems")}
+                    </p>
                 )}
                 {error ? (
                     <p className="form-error" role="alert">

@@ -22,7 +22,11 @@ export function ProjectsGrid({
     dragEnabled,
     limit,
     className,
-    emptySlotLabel
+    emptySlotLabel,
+    // ─── NEW: multi-select mode for bulk delete. ───
+    selectMode,
+    selectedIds,
+    onToggleSelect
 }: {
     projects: ProjectRecord[];
     handlers: ProjectGridHandlers;
@@ -30,6 +34,9 @@ export function ProjectsGrid({
     limit?: number;
     className?: string;
     emptySlotLabel?: string;
+    selectMode?: boolean;
+    selectedIds?: Set<string>;
+    onToggleSelect?: (project: ProjectRecord) => void;
 }) {
     const { t } = useI18n();
     const slotLabel = emptySlotLabel ?? t("project.dropHere");
@@ -87,7 +94,10 @@ export function ProjectsGrid({
                                 project={project}
                                 dragMode={false}
                                 compact={false}
-                                draggable={dragEnabled}
+                                draggable={dragEnabled && !selectMode}
+                                selectMode={selectMode}
+                                selected={selectedIds?.has(project.id) === true}
+                                onToggleSelect={() => onToggleSelect?.(project)}
                                 menuOpen={menuProjectId === project.id}
                                 ariaPosInSet={index + 1}
                                 ariaSetSize={visible.length}

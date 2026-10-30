@@ -9,6 +9,7 @@ import "./styles/shell.css";
 import "./styles/components.css";
 import "./styles/dashboard.css";
 import "./styles/pages.css";
+import "./styles/selection.css";
 import "./styles/motion.css";
 import "./styles/archive.css";
 import "./styles/checklist.css";

@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
-import { CheckCircle2, Filter, Plus, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { CheckCircle2, Filter, ListChecks, Plus, Search } from "lucide-react";
 import { useStore } from "@/app/store";
 import { TASK_FILTERS, filterTasks, type TaskFilter } from "@/app/tasks";
 import { EmptyState } from "@/components/EmptyState";
-import { sortProjects, sortTasks } from "@/db/schema";
+import { SelectionBar } from "@/components/SelectionBar";
+import { sortProjects, sortTasks, type TaskRecord } from "@/db/schema";
 import { isOverdue } from "@/lib/dates";
 import { useWorkflows } from "@/feature-hooks";
 import { useI18n } from "@/i18n";
@@ -18,6 +19,9 @@ export function TasksPage() {
     const [query, setQuery] = useState("");
     const [draggingId, setDraggingId] = useState<string | null>(null);
     const [targetIndex, setTargetIndex] = useState<number | null>(null);
+    // ─── NEW: multi-select mode for bulk delete. ───
+    const [selectMode, setSelectMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
     const projectNames = useMemo(() => new Map(projects.map((project) => [project.id, project.name])), [projects]);
     const activeProjects = useMemo(() => sortProjects(projects.filter((project) => !project.archived)), [projects]);
@@ -58,11 +62,52 @@ export function TasksPage() {
         void workflows.reorderTasks(next);
     }
 
+    // ─── NEW: selection helpers. The set is pruned when tasks change so entries
+    // deleted elsewhere never inflate the "N selected" counter. ───
+    useEffect(() => {
+        setSelectedIds((current) => {
+            const next = new Set([...current].filter((id) => tasks.some((task) => task.id === id)));
+            return next.size === current.size ? current : next;
+        });
+    }, [tasks]);
+
+    const selectedTasks = useMemo(
+        () => tasks.filter((task) => selectedIds.has(task.id)),
+        [tasks, selectedIds]
+    );
+    const allVisibleSelected = visible.length > 0 && visible.every((task) => selectedIds.has(task.id));
+
+    function toggleSelectMode() {
+        setSelectMode((current) => !current);
+        setSelectedIds(new Set());
+    }
+
+    function toggleTaskSelected(task: TaskRecord) {
+        setSelectedIds((current) => {
+            const next = new Set(current);
+            if (next.has(task.id)) next.delete(task.id);
+            else next.add(task.id);
+            return next;
+        });
+    }
+
+    function toggleAllVisible() {
+        setSelectedIds((current) => {
+            const next = new Set(current);
+            if (visible.length > 0 && visible.every((task) => next.has(task.id))) {
+                visible.forEach((task) => next.delete(task.id));
+            } else {
+                visible.forEach((task) => next.add(task.id));
+            }
+            return next;
+        });
+    }
+
     if (!ready) {
         return <div className="page-loading" aria-busy="true" />;
     }
 
-    const reorderEnabled = filter === "all" && projectFilter === "all" && !query.trim();
+    const reorderEnabled = filter === "all" && projectFilter === "all" && !query.trim() && !selectMode;
 
     return (
         <div className="page tasks-page">
@@ -78,14 +123,36 @@ export function TasksPage() {
                     </p>
                 </div>
                 <div className="page-header-actions">
-                    <button
-                        type="button"
-                        className="button button-primary button-small"
-                        onClick={() => workflows.openTaskDialog(null)}
-                    >
-                        <Plus size={14} strokeWidth={2} aria-hidden="true" />
-                        {t("common.newTask")}
-                    </button>
+                    {selectMode ? (
+                        <SelectionBar
+                            count={selectedTasks.length}
+                            total={visible.length}
+                            allSelected={allVisibleSelected}
+                            onToggleAll={toggleAllVisible}
+                            onDelete={() => workflows.requestDeleteTasks(selectedTasks)}
+                            onExit={toggleSelectMode}
+                        />
+                    ) : (
+                        <>
+                            <button
+                                type="button"
+                                className="button button-ghost button-small"
+                                onClick={toggleSelectMode}
+                                disabled={visible.length === 0}
+                            >
+                                <ListChecks size={14} strokeWidth={1.9} aria-hidden="true" />
+                                {t("common.selectItems")}
+                            </button>
+                            <button
+                                type="button"
+                                className="button button-primary button-small"
+                                onClick={() => workflows.openTaskDialog(null)}
+                            >
+                                <Plus size={14} strokeWidth={2} aria-hidden="true" />
+                                {t("common.newTask")}
+                            </button>
+                        </>
+                    )}
                 </div>
             </header>
 
@@ -197,6 +264,9 @@ export function TasksPage() {
                                     showProjectName
                                     showMenu
                                     projectNames={projectNames}
+                                    selectMode={selectMode}
+                                    selectedIds={selectedIds}
+                                    onToggleSelect={toggleTaskSelected}
                                     handlers={{
                                         onToggle: workflows.toggleTask,
                                         onToggleFavorite: workflows.toggleTaskFavorite,
@@ -211,7 +281,11 @@ export function TasksPage() {
                 )}
             </div>
             <p className="list-hint">
-                {reorderEnabled ? t("common.dragToReorder") : t("common.clearFiltersToDrag")}
+                {selectMode
+                    ? t("common.selectModeHint")
+                    : reorderEnabled
+                        ? t("common.dragToReorder")
+                        : t("common.clearFiltersToDrag")}
             </p>
         </div>
     );

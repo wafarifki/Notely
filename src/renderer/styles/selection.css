@@ -1,0 +1,116 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Multi-select mode (tasks, notes, projects)
+   One toolbar + one pick-box visual language shared by every list. ────────── */
+
+.selection-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.selection-bar-count {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    padding: 0 6px;
+    white-space: nowrap;
+}
+
+.selection-bar-exit {
+    padding-inline: 7px;
+}
+
+/* Two text actions ("Select" + "New") share the section header on Home. */
+.section-header-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+}
+
+/* ── The pick box: a small square that follows the task-checkbox language. ── */
+.row-select,
+.note-card-select,
+.folder-card-select {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    width: 19px;
+    height: 19px;
+    flex: 0 0 auto;
+    padding: 0;
+    border-radius: 3.5px;
+    border: 1px solid color-mix(in srgb, var(--line) 70%, var(--text-muted));
+    background: var(--skin);
+    color: #fff;
+    cursor: pointer;
+    transition:
+        background var(--duration-fast) var(--ease-calm),
+        border-color var(--duration-fast) var(--ease-calm);
+}
+
+.row-select:hover,
+.note-card-select:hover,
+.folder-card-select:hover {
+    border-color: color-mix(in srgb, var(--accent-purple) 40%, var(--line));
+}
+
+.row-select input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    margin: 0;
+    cursor: pointer;
+}
+
+.row-select.is-checked,
+.note-card-select.is-checked,
+.folder-card-select.is-checked {
+    background: var(--button-bg);
+    border-color: var(--button-bg);
+}
+
+.row-select input:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+}
+
+.note-card-select:focus-visible,
+.folder-card-select:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+}
+
+/* ── Task rows ── */
+.task-row.is-selected {
+    border-radius: 6px;
+    background: var(--accent-purple-soft);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-purple) 30%, transparent);
+}
+
+/* ── Note cards ── */
+.note-card.is-selectable {
+    cursor: pointer;
+}
+
+.note-card.is-selected {
+    border-color: var(--accent-purple);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-purple) 25%, transparent);
+}
+
+/* ── Project folder cards. The selected ring reuses the face's ::before so it
+   follows the clipped folder silhouette instead of a rectangular border. ── */
+.folder-card.is-selectable {
+    cursor: pointer;
+}
+
+.folder-card.is-selected .folder-card-face::before {
+    box-shadow: inset 0 0 0 2px var(--accent-purple);
+}
+
+.folder-card-select {
+    position: absolute;
+    top: calc(var(--tab-height) + 10px);
+    right: 12px;
+    z-index: 1;
+}

@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
-import { ArrowDownAZ, FileText, Filter, Plus, Search, Star, Pin, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowDownAZ, FileText, Filter, ListChecks, Plus, Search, Star, Pin, X } from "lucide-react";
 import { useStore } from "@/app/store";
 import { EmptyState } from "@/components/EmptyState";
+import { SelectionBar } from "@/components/SelectionBar";
 import { searchNotes } from "@/lib/search";
-import { sortNotes, sortProjects } from "@/db/schema";
+import { sortNotes, sortProjects, type NoteRecord } from "@/db/schema";
 import { useWorkflows } from "@/feature-hooks";
 import { useI18n } from "@/i18n";
 import type { TranslationKey } from "@/i18n/translations";
@@ -28,6 +29,9 @@ export function NotesPage({ initialTag }: { initialTag?: string }) {
     const [tagFilter, setTagFilter] = useState<string>(initialTag ?? "");
     const [sortMode, setSortMode] = useState<SortMode>("updated");
     const [flagged, setFlagged] = useState<"none" | "pinned" | "favorite">("none");
+    // ─── NEW: multi-select mode for bulk delete. ───
+    const [selectMode, setSelectMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
     const activeProjects = useMemo(() => sortProjects(projects.filter((project) => !project.archived)), [projects]);
     // ─── NEW: archived notes live on the Archive page, not in this list. ───
@@ -64,6 +68,47 @@ export function NotesPage({ initialTag }: { initialTag?: string }) {
 
     const filtersActive = Boolean(query.trim() || projectFilter !== "all" || tagFilter || flagged !== "none");
 
+    // ─── NEW: selection helpers. The set is pruned when notes change so entries
+    // deleted elsewhere never inflate the "N selected" counter. ───
+    useEffect(() => {
+        setSelectedIds((current) => {
+            const next = new Set([...current].filter((id) => notes.some((note) => note.id === id)));
+            return next.size === current.size ? current : next;
+        });
+    }, [notes]);
+
+    const selectedNotes = useMemo(
+        () => notes.filter((note) => selectedIds.has(note.id)),
+        [notes, selectedIds]
+    );
+    const allVisibleSelected = filtered.length > 0 && filtered.every((note) => selectedIds.has(note.id));
+
+    function toggleSelectMode() {
+        setSelectMode((current) => !current);
+        setSelectedIds(new Set());
+    }
+
+    function toggleNoteSelected(note: NoteRecord) {
+        setSelectedIds((current) => {
+            const next = new Set(current);
+            if (next.has(note.id)) next.delete(note.id);
+            else next.add(note.id);
+            return next;
+        });
+    }
+
+    function toggleAllVisible() {
+        setSelectedIds((current) => {
+            const next = new Set(current);
+            if (filtered.length > 0 && filtered.every((note) => next.has(note.id))) {
+                filtered.forEach((note) => next.delete(note.id));
+            } else {
+                filtered.forEach((note) => next.add(note.id));
+            }
+            return next;
+        });
+    }
+
     if (!ready) {
         return <div className="page-loading" aria-busy="true" />;
     }
@@ -80,39 +125,61 @@ export function NotesPage({ initialTag }: { initialTag?: string }) {
                     </p>
                 </div>
                 <div className="page-header-actions">
-                    <button
-                        type="button"
-                        className="button button-ghost button-small"
-                        onClick={() => {
-                            setFlagged((current) => (current === "pinned" ? "none" : "pinned"));
-                        }}
-                        aria-pressed={flagged === "pinned"}
-                    >
-                        <Pin size={13} strokeWidth={1.8} aria-hidden="true" />
-                        {t("notes.pinned")}
-                    </button>
-                    <button
-                        type="button"
-                        className="button button-ghost button-small"
-                        onClick={() => {
-                            setFlagged((current) => (current === "favorite" ? "none" : "favorite"));
-                        }}
-                        aria-pressed={flagged === "favorite"}
-                    >
-                        <Star size={13} strokeWidth={1.8} aria-hidden="true" />
-                        {t("notes.favorites")}
-                    </button>
-                    <button
-                        type="button"
-                        className="button button-primary button-small"
-                        data-tour="new-note"
-                        onClick={() => {
-                            void workflows.createNote({ open: true });
-                        }}
-                    >
-                        <Plus size={14} strokeWidth={2} aria-hidden="true" />
-                        {t("common.newNote")}
-                    </button>
+                    {selectMode ? (
+                        <SelectionBar
+                            count={selectedNotes.length}
+                            total={filtered.length}
+                            allSelected={allVisibleSelected}
+                            onToggleAll={toggleAllVisible}
+                            onDelete={() => workflows.requestDeleteNotes(selectedNotes)}
+                            onExit={toggleSelectMode}
+                        />
+                    ) : (
+                        <>
+                            <button
+                                type="button"
+                                className="button button-ghost button-small"
+                                onClick={toggleSelectMode}
+                                disabled={filtered.length === 0}
+                            >
+                                <ListChecks size={14} strokeWidth={1.9} aria-hidden="true" />
+                                {t("common.selectItems")}
+                            </button>
+                            <button
+                                type="button"
+                                className="button button-ghost button-small"
+                                onClick={() => {
+                                    setFlagged((current) => (current === "pinned" ? "none" : "pinned"));
+                                }}
+                                aria-pressed={flagged === "pinned"}
+                            >
+                                <Pin size={13} strokeWidth={1.8} aria-hidden="true" />
+                                {t("notes.pinned")}
+                            </button>
+                            <button
+                                type="button"
+                                className="button button-ghost button-small"
+                                onClick={() => {
+                                    setFlagged((current) => (current === "favorite" ? "none" : "favorite"));
+                                }}
+                                aria-pressed={flagged === "favorite"}
+                            >
+                                <Star size={13} strokeWidth={1.8} aria-hidden="true" />
+                                {t("notes.favorites")}
+                            </button>
+                            <button
+                                type="button"
+                                className="button button-primary button-small"
+                                data-tour="new-note"
+                                onClick={() => {
+                                    void workflows.createNote({ open: true });
+                                }}
+                            >
+                                <Plus size={14} strokeWidth={2} aria-hidden="true" />
+                                {t("common.newNote")}
+                            </button>
+                        </>
+                    )}
                 </div>
             </header>
 
@@ -234,6 +301,9 @@ export function NotesPage({ initialTag }: { initialTag?: string }) {
                     projects={projects}
                     limit={filtered.length}
                     className="is-full"
+                    selectMode={selectMode}
+                    selectedIds={selectedIds}
+                    onToggleSelect={toggleNoteSelected}
                     handlers={{
                         onOpen: (note) => workflows.openNote(note.id),
                         onDelete: workflows.requestDeleteNote,

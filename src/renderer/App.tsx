@@ -5,7 +5,7 @@ import { AppShell } from "@/app/AppShell";
 import { UiActionsProvider, type UiActions } from "@/app/ui";
 import { WorkflowsProvider, type AppWorkflows } from "@/feature-hooks";
 import { ToastProvider, useToast } from "@/components/Toasts";
-import { I18nProvider, useI18n } from "@/i18n";
+import { I18nProvider, useI18n, type I18nValue } from "@/i18n";
 import { ProjectDialog } from "@/components/ProjectDialog";
 import { TaskDialog } from "@/features/tasks/TaskDialog";
 import { DeleteProjectDialog } from "@/features/projects/DeleteProjectDialog";
@@ -32,6 +32,15 @@ interface ProjectDialogState {
     onCreated?: (id: string) => void;
 }
 
+// ─── NEW: bulk deletes list the affected titles (first three, then a "+N more"
+// tail) so the confirm dialog still tells the user what is about to disappear. ───
+function bulkDetail<T>(rows: T[], title: (row: T) => string, t: I18nValue["t"]): string | undefined {
+    if (rows.length <= 1) return undefined;
+    const labels = rows.slice(0, 3).map((row) => `“${title(row)}”`);
+    const rest = rows.length - labels.length;
+    return `${labels.join(", ")}${rest > 0 ? ` ${t("delete.moreCount", { count: rest })}` : ""}`;
+}
+
 function Workspace() {
     const store = useStore();
     const toast = useToast();
@@ -39,9 +48,11 @@ function Workspace() {
     const { route, navigate } = useHashRoute();
     const [searchOpen, setSearchOpen] = useState(false);
     const [projectDialog, setProjectDialog] = useState<ProjectDialogState | null>(null);
-    const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
-    const [noteToDelete, setNoteToDelete] = useState<NoteRecord | null>(null);
-    const [taskToDelete, setTaskToDelete] = useState<TaskRecord | null>(null);
+    // ─── NEW: pending deletions are arrays so multi-select bulk delete shares
+    // the same dialogs and confirm paths as single deletes. ───
+    const [deletingProjectIds, setDeletingProjectIds] = useState<string[]>([]);
+    const [notesToDelete, setNotesToDelete] = useState<NoteRecord[]>([]);
+    const [tasksToDelete, setTasksToDelete] = useState<TaskRecord[]>([]);
     const [taskDialog, setTaskDialog] = useState<{ taskId: string | null; defaultProjectId: string | null } | null>(null);
     const [noteFocusTitle, setNoteFocusTitle] = useState(false);
     // ─── OLD CODE (kept for reference) ───
@@ -145,7 +156,12 @@ function Workspace() {
         [store.service, toast, t, openNote]
     );
 
-    const requestDeleteProject = useCallback((projectId: string) => setDeletingProjectId(projectId), []);
+    const requestDeleteProject = useCallback((projectId: string) => setDeletingProjectIds([projectId]), []);
+
+    // ─── NEW: multi-select bulk delete. ───
+    const requestDeleteProjects = useCallback((projectIds: string[]) => setDeletingProjectIds(projectIds), []);
+    const requestDeleteNotes = useCallback((rows: NoteRecord[]) => setNotesToDelete(rows), []);
+    const requestDeleteTasks = useCallback((rows: TaskRecord[]) => setTasksToDelete(rows), []);
 
     // ─── NEW: a `.txt` / `.md` opened through Windows lands here. The main
     // process does the parsing (it has filesystem access); this side decides
@@ -178,44 +194,59 @@ function Workspace() {
 
     const deleteProject = useCallback(
         async (strategy: "unassign" | "delete") => {
-            if (!deletingProjectId) return;
-            await store.service.deleteProject(deletingProjectId, strategy);
-            toast.success(t(strategy === "unassign" ? "toast.projectDeletedUnassigned" : "toast.projectDeleted"));
-            setDeletingProjectId(null);
-            if (route.name === "project" && route.id === deletingProjectId) {
+            if (deletingProjectIds.length === 0) return;
+            await store.service.deleteProjects(deletingProjectIds, strategy);
+            toast.success(
+                deletingProjectIds.length === 1
+                    ? t(strategy === "unassign" ? "toast.projectDeletedUnassigned" : "toast.projectDeleted")
+                    : t("toast.projectsDeleted", { count: deletingProjectIds.length })
+            );
+            const deletedIds = new Set(deletingProjectIds);
+            setDeletingProjectIds([]);
+            if (route.name === "project" && deletedIds.has(route.id)) {
                 go({ name: "home" });
             }
         },
-        [deletingProjectId, store.service, toast, t, route, go]
+        [deletingProjectIds, store.service, toast, t, route, go]
     );
 
-    const confirmDeleteNote = useCallback(async () => {
-        if (!noteToDelete) return;
+    const confirmDeleteNotes = useCallback(async () => {
+        if (notesToDelete.length === 0) return;
         try {
-            await store.service.deleteNote(noteToDelete.id);
-            toast.success(t("toast.noteDeleted"));
-            if (route.name === "note" && route.id === noteToDelete.id) {
+            await store.service.deleteNotes(notesToDelete.map((note) => note.id));
+            toast.success(
+                notesToDelete.length === 1
+                    ? t("toast.noteDeleted")
+                    : t("toast.notesDeleted", { count: notesToDelete.length })
+            );
+            const deletedIds = new Set(notesToDelete.map((note) => note.id));
+            if (route.name === "note" && deletedIds.has(route.id)) {
                 go({ name: "notes" });
             }
         } catch (error) {
             toast.error(describeError(error));
         }
-        setNoteToDelete(null);
-    }, [noteToDelete, store.service, toast, t, route, go]);
+        setNotesToDelete([]);
+    }, [notesToDelete, store.service, toast, t, route, go]);
 
-    const confirmDeleteTask = useCallback(async () => {
-        if (!taskToDelete) return;
+    const confirmDeleteTasks = useCallback(async () => {
+        if (tasksToDelete.length === 0) return;
         try {
-            await store.service.deleteTask(taskToDelete.id);
-            toast.success(t("toast.taskDeleted"));
-            if (taskDialog?.taskId === taskToDelete.id) {
+            await store.service.deleteTasks(tasksToDelete.map((task) => task.id));
+            toast.success(
+                tasksToDelete.length === 1
+                    ? t("toast.taskDeleted")
+                    : t("toast.tasksDeleted", { count: tasksToDelete.length })
+            );
+            const deletedIds = new Set(tasksToDelete.map((task) => task.id));
+            if (taskDialog?.taskId && deletedIds.has(taskDialog.taskId)) {
                 setTaskDialog(null);
             }
         } catch (error) {
             toast.error(describeError(error));
         }
-        setTaskToDelete(null);
-    }, [taskToDelete, store.service, toast, t, taskDialog]);
+        setTasksToDelete([]);
+    }, [tasksToDelete, store.service, toast, t, taskDialog]);
 
     const toggleTask = useCallback(
         async (task: TaskRecord) => {
@@ -390,6 +421,7 @@ function Workspace() {
             openSearch: () => setSearchOpen(true),
             openProjectDialog: (request) => setProjectDialog(request),
             requestDeleteProject,
+            requestDeleteProjects,
             toggleProjectArchive: (projectId) => {
                 const project = store.projects.find((row) => row.id === projectId);
                 if (!project) return;
@@ -401,12 +433,14 @@ function Workspace() {
             openNote,
             createNote,
             openNoteDialog: (note) => openNote(note.id),
-            requestDeleteNote: (note) => setNoteToDelete(note),
+            requestDeleteNote: (note) => setNotesToDelete([note]),
+            requestDeleteNotes,
             archiveNote,
             toggleNoteFlag,
             moveNote,
             openTaskDialog,
-            requestDeleteTask: (task) => setTaskToDelete(task),
+            requestDeleteTask: (task) => setTasksToDelete([task]),
+            requestDeleteTasks,
             archiveTask,
             toggleTask,
             toggleTaskFavorite,
@@ -419,6 +453,9 @@ function Workspace() {
         [
             go,
             requestDeleteProject,
+            requestDeleteProjects,
+            requestDeleteNotes,
+            requestDeleteTasks,
             store.projects,
             store.service,
             toast,
@@ -499,14 +536,17 @@ function Workspace() {
         }
     }, [intentTick, store.ready, openTaskDialog, createNote, openImportedDocument]);
 
-    const deletingProject = store.projects.find((project) => project.id === deletingProjectId) ?? null;
-    const relationCounts = useMemo(
-        () => ({
-            notes: store.notes.filter((note) => note.projectId === deletingProjectId).length,
-            tasks: store.tasks.filter((task) => task.projectId === deletingProjectId).length
-        }),
-        [store.notes, store.tasks, deletingProjectId]
+    const deletingProjects = useMemo(
+        () => store.projects.filter((project) => deletingProjectIds.includes(project.id)),
+        [store.projects, deletingProjectIds]
     );
+    const relationCounts = useMemo(() => {
+        const idSet = new Set(deletingProjectIds);
+        return {
+            notes: store.notes.filter((note) => note.projectId !== null && idSet.has(note.projectId)).length,
+            tasks: store.tasks.filter((task) => task.projectId !== null && idSet.has(task.projectId)).length
+        };
+    }, [store.notes, store.tasks, deletingProjectIds]);
 
     const editingProject = projectDialog?.projectId
         ? store.projects.find((project) => project.id === projectDialog.projectId) ?? null
@@ -588,9 +628,9 @@ function Workspace() {
                 />
 
                 <DeleteProjectDialog
-                    project={deletingProject}
+                    projects={deletingProjects}
                     relationCounts={relationCounts}
-                    onClose={() => setDeletingProjectId(null)}
+                    onClose={() => setDeletingProjectIds([])}
                     onConfirm={deleteProject}
                 />
 
@@ -613,32 +653,38 @@ function Workspace() {
                     onDelete={
                         activeTask
                             ? () => {
-                                  setTaskToDelete(activeTask);
+                                  setTasksToDelete([activeTask]);
                               }
                             : undefined
                     }
                 />
 
                 <DeleteConfirm
-                    open={Boolean(noteToDelete)}
+                    open={notesToDelete.length > 0}
                     subject="note"
+                    count={notesToDelete.length}
                     detail={
-                        noteToDelete
+                        notesToDelete.length === 1
                             ? t("delete.noteDetail", {
-                                  title: noteToDelete.title || t("common.untitledNote")
+                                  title: notesToDelete[0].title || t("common.untitledNote")
                               })
-                            : undefined
+                            : bulkDetail(notesToDelete, (note) => note.title || t("common.untitledNote"), t)
                     }
-                    onCancel={() => setNoteToDelete(null)}
-                    onConfirm={() => void confirmDeleteNote()}
+                    onCancel={() => setNotesToDelete([])}
+                    onConfirm={() => void confirmDeleteNotes()}
                 />
 
                 <DeleteConfirm
-                    open={Boolean(taskToDelete)}
+                    open={tasksToDelete.length > 0}
                     subject="task"
-                    detail={taskToDelete ? t("delete.noteDetail", { title: taskToDelete.title }) : undefined}
-                    onCancel={() => setTaskToDelete(null)}
-                    onConfirm={() => void confirmDeleteTask()}
+                    count={tasksToDelete.length}
+                    detail={
+                        tasksToDelete.length === 1
+                            ? t("delete.noteDetail", { title: tasksToDelete[0].title })
+                            : bulkDetail(tasksToDelete, (task) => task.title, t)
+                    }
+                    onCancel={() => setTasksToDelete([])}
+                    onConfirm={() => void confirmDeleteTasks()}
                 />
 
             </UiActionsProvider>

@@ -1,4 +1,4 @@
-import { MoreHorizontal } from "lucide-react";
+import { Check, MoreHorizontal } from "lucide-react";
 import type { CSSProperties, Ref } from "react";
 import type { ProjectRecord } from "@/db/schema";
 import { formatFullDate } from "@/lib/dates";
@@ -14,6 +14,10 @@ interface FolderCardProps {
     style?: CSSProperties;
     cardRef?: Ref<HTMLElement>;
     menuOpen?: boolean;
+    // ─── NEW: multi-select mode turns the card into a pick target. ───
+    selectMode?: boolean;
+    selected?: boolean;
+    onToggleSelect?: () => void;
     onOpen?: () => void;
     onMenu?: (anchor: HTMLElement) => void;
     onPointerDown?: (event: React.PointerEvent<HTMLElement>) => void;
@@ -37,6 +41,9 @@ export function FolderCard({
     style,
     cardRef,
     menuOpen,
+    selectMode,
+    selected,
+    onToggleSelect,
     onOpen,
     onMenu,
     onPointerDown,
@@ -57,7 +64,9 @@ export function FolderCard({
         elevated ? "is-elevated" : "",
         dragMode ? "is-floating" : "",
         compact ? "is-compact" : "",
-        menuOpen ? "is-menu-open" : ""
+        menuOpen ? "is-menu-open" : "",
+        selectMode ? "is-selectable" : "",
+        selected ? "is-selected" : ""
     ]
         .filter(Boolean)
         .join(" ");
@@ -81,12 +90,30 @@ export function FolderCard({
             onDoubleClick={onOpen}
         >
             <div className="folder-card-face">
+                {selectMode ? (
+                    <button
+                        type="button"
+                        className={`folder-card-select${selected ? " is-checked" : ""}`}
+                        aria-pressed={selected}
+                        aria-label={t("project.selectAria", { name: project.name })}
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            onToggleSelect?.();
+                        }}
+                    >
+                        {selected ? <Check size={11} strokeWidth={3} /> : null}
+                    </button>
+                ) : null}
                 <button
                     type="button"
                     className="folder-card-body"
                     onClick={(event) => {
                         if (dragging) {
                             event.preventDefault();
+                            return;
+                        }
+                        if (selectMode) {
+                            onToggleSelect?.();
                             return;
                         }
                         onOpen?.();
@@ -104,19 +131,21 @@ export function FolderCard({
                 ) : null}
                 <div className="folder-card-footer">
                     <span className="folder-card-date">{displayDate}</span>
-                    <button
-                        type="button"
-                        className="card-menu-button"
-                        aria-label={t("project.actionsFor", { name: project.name })}
-                        aria-haspopup="menu"
-                        aria-expanded={menuOpen ? "true" : "false"}
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            onMenu?.(event.currentTarget);
-                        }}
-                    >
-                        <MoreHorizontal size={15} strokeWidth={2} />
-                    </button>
+                    {!selectMode ? (
+                        <button
+                            type="button"
+                            className="card-menu-button"
+                            aria-label={t("project.actionsFor", { name: project.name })}
+                            aria-haspopup="menu"
+                            aria-expanded={menuOpen ? "true" : "false"}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onMenu?.(event.currentTarget);
+                            }}
+                        >
+                            <MoreHorizontal size={15} strokeWidth={2} />
+                        </button>
+                    ) : null}
                 </div>
             </div>
         </article>
